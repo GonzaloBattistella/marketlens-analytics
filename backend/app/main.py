@@ -122,3 +122,39 @@ def obtener_historial_precios(ticker: str, db: Session = Depends(get_db)):
         })
         
     return respuesta
+
+
+# ----------------------------------------------------------------
+#          ENDPOINTS DE LECTURA DIRECTA DESDE LA DB
+# ----------------------------------------------------------------
+
+@app.get("/db/indicadores")
+def leer_indicadores_db(db: Session = Depends(get_db)):
+    # Hacemos una consulta a la tabla market_indicators y traemos TODO (.all())
+    activos = db.query(models.MarketIndicator).all()
+    
+    # Si la base de datos está completamente vacía, avisamos
+    if not activos:
+        return []
+        
+    return activos
+
+
+@app.get("/db/historial/{ticker}")
+def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
+    ticker = ticker.upper()
+    
+    # Buscamos en price_history filtrando por ticker y ordenando por fecha ascendente
+    historial = db.query(models.PriceHistory)\
+                  .filter(models.PriceHistory.ticker == ticker)\
+                  .order_by(models.PriceHistory.fecha.asc())\
+                  .all()
+                  
+    # Si no encontramos filas para ese ticker en la DB, tiramos un 404
+    if not historial:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"No se encontraron datos históricos en la DB para {ticker}. Primero debés consultar /historial/{ticker}"
+        )
+        
+    return historial

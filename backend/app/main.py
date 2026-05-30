@@ -5,11 +5,21 @@ from app.database import engine
 from app.database import get_db
 import app.models as models
 from datetime import datetime
+from fastapi.middleware.cors import CORSMiddleware
 
 # Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MarketLens API", version="0.1.0")
+
+# Configuramos los permisos de CORS para que el frontend pueda consultar la API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Permite que cualquier origen (como tu Live Server) se conecte
+    allow_credentials=True,
+    allow_methods=["*"], # Permite todos los métodos (GET, POST, etc.)
+    allow_headers=["*"], # Permite todos los encabezados
+)
 
 @app.get("/")
 def read_root():

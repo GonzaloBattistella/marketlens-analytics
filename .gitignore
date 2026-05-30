@@ -1,0 +1,27 @@
+# Entornos virtuales
+backend/venv/
+venv/
+ENV/
+env/
+
+# Python basura/caché
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Variables de entorno / Secretos (Previsión para el futuro)
+.env
+.env.*
+
+# Configuraciones de editores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+#Fin del archivo

@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
 import yfinance as yf
 from app.database import engine
+from app.database import get_db
 import app.models as models
 
 # Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
@@ -13,37 +15,57 @@ def read_root():
     return {"status": "MarketLens API funcionando correctamente"}
 
 # Este va a ser nuestro primer endpoint de prueba para simular la tabla 'market_indicators'
-@app.get("/api/v1/mercado/indicadores/{ticker}")
-def obtener_indicadores_tiempo_real(ticker: str):
-    try:
-        # 1. Nos conectamos de forma virtual con Yahoo Finance para ese Ticker (ej: AAPL, GGAL)
-        activo = yf.Ticker(ticker)
-        
-        # 2. Le pedimos la información general del activo (.info devuelve un diccionario de Python)
-        info_completa = activo.info
-        
-        # Si Yahoo Finance no encuentra el activo, suele devolver un diccionario casi vacío o sin nombre
-        if not info_completa or "longName" not in info_completa:
-            raise HTTPException(status_code=404, detail=f"No se encontraron datos para el ticker: {ticker}")
-        
-        # 3. Filtramos solo los datos específicos que diseñamos en nuestro modelo lógico
-        indicadores = {
-            "ticker": ticker.upper(),
-            "nombre": info_completa.get("longName"),
-            "precio_actual": info_completa.get("currentPrice") or info_completa.get("regularMarketPrice"),
-            "capitalizacion_mercado": info_completa.get("marketCap"),
-            "relacion_pe": info_completa.get("trailingPE"), # Ratio P/E
-            "variacion_porcentual_diaria": info_completa.get("regularMarketChangePercent"),
-            "moneda": info_completa.get("currency")
-        }
-        
-        return indicadores
-
-    except Exception as e:
-        # Si algo falla (un error de red, por ejemplo), FastAPI lo atrapa acá
-        raise HTTPException(status_code=500, detail=f"Error al conectar con el proveedor: {str(e)}")
+@app.get("/indicadores/{ticker}")
+def obtener_indicadores(ticker: str, db: Session = Depends(get_db)): # Inyectamos la sesion de la DB.
+    ticker = ticker.upper()
+    asset = yf.Ticker(ticker)
+    info = asset.info
     
-    # Este endpoint va a simular los datos para la tabla 'price_history'
+    if not info or 'regularMarketPrice' not in info:
+        raise HTTPException(status_code=404, detail=f"No se encontraron datos para el ticker {ticker}")
+        
+    # 1. Mapeamos los datos que nos mandó Yahoo Finance a variables limpias
+    datos_api = {
+        "ticker": ticker,
+        "nombre": info.get('longName', 'Sin Nombre'),
+        "precio_actual": info.get('regularMarketPrice'),
+        "variacion_porcentual": info.get('regularMarketChangePercent'),
+        "capitalizacion_mercado": info.get('marketCap'),
+        "volumen": info.get('regularMarketVolume')
+    }
+    
+    # 2. Buscamos en NUESTRA base de datos si ya existe este ticker
+    indicador_db = db.query(models.MarketIndicator).filter(models.MarketIndicator.ticker == ticker).first()
+    
+    if indicador_db:
+        # CASO A: El activo YA existe en la DB. Actualizamos sus valores dinámicos.
+        indicador_db.precio_actual = datos_api["precio_actual"]
+        indicador_db.variacion_porcentual = datos_api["variacion_porcentual"]
+        indicador_db.capitalizacion_mercado = datos_api["capitalizacion_mercado"]
+        indicador_db.volumen = datos_api["volumen"]
+        print(f"🔄 ¡Actualizando datos de {ticker} en la base de datos!")
+    else:
+        # CASO B: El activo ES NUEVO. Creamos una instancia del modelo SQLAlchemy.
+        nuevo_indicador = models.MarketIndicator(
+            ticker=datos_api["ticker"],
+            nombre=datos_api["nombre"],
+            precio_actual=datos_api["precio_actual"],
+            variacion_porcentual=datos_api["variacion_porcentual"],
+            capitalizacion_mercado=datos_api["capitalizacion_mercado"],
+            volumen=datos_api["volumen"]
+        )
+        # Le decimos a la sesión que se prepare para guardarlo
+        db.add(nuevo_indicador)
+        print(f"✨ ¡Guardando nuevo activo {ticker} en la base de datos!")
+        
+    # 3. IMPACTAMOS LOS CAMBIOS EN POSTGRESQL
+    # SQLAlchemy hace un 'COMMIT' real. Si no llamamos a esto, los datos nunca se guardan físicamente.
+    db.commit()
+    
+    # 4. Devolvemos la respuesta en formato JSON al cliente
+    return datos_api
+
+# Este endpoint va a simular los datos para la tabla 'price_history'
 @app.get("/api/v1/mercado/historial/{ticker}")
 def obtener_historial_precios(ticker: str, periodo: str = "1mo"):
     try:

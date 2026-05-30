@@ -4,6 +4,7 @@ import yfinance as yf
 from app.database import engine
 from app.database import get_db
 import app.models as models
+from datetime import datetime
 
 # Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
 models.Base.metadata.create_all(bind=engine)
@@ -66,43 +67,58 @@ def obtener_indicadores(ticker: str, db: Session = Depends(get_db)): # Inyectamo
     return datos_api
 
 # Este endpoint va a simular los datos para la tabla 'price_history'
-@app.get("/api/v1/mercado/historial/{ticker}")
-def obtener_historial_precios(ticker: str, periodo: str = "1mo"):
-    try:
-        # 1. Nos conectamos con el activo en Yahoo Finance
-        activo = yf.Ticker(ticker)
-        
-        # 2. Le pedimos el historial de precios. 
-        # Esto nos devuelve un objeto llamado DataFrame (una tabla interna de Python)
-        historial_df = activo.history(period=periodo)
-        
-        # Si la tabla que nos devuelve está vacía, es porque el ticker no existe o no hay datos
-        if historial_df.empty:
-            raise HTTPException(status_code=404, detail=f"No se encontró historial para el ticker: {ticker}")
-        
-        # 3. Procesamos la tabla para transformarla en una lista de diccionarios (JSON)
-        lista_precios = []
-        
-        # Iteramos fila por fila sobre la tabla que nos mandó Yahoo Finance
-        for fecha, fila in historial_df.iterrows():
-            registro = {
-                "fecha": fecha.strftime("%Y-%m-%d"), # Transformamos la fecha a texto legible
-                "precio_apertura": round(fila["Open"], 2), # Redondeamos a 2 decimales
-                "precio_maximo": round(fila["High"], 2),
-                "precio_minimo": round(fila["Low"], 2),
-                "precio_cierre": round(fila["Close"], 2),
-                "volumen": int(fila["Volume"]) # El volumen siempre es un número entero
-            }
-            lista_precios.append(registro)
-            
-        # Devolvemos la lista ordenada cronológicamente
-        return {
-            "ticker": ticker.upper(),
-            "periodo_consultado": periodo,
-            "cantidad_registros": len(lista_precios),
-            "datos": lista_precios
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener el historial: {str(e)}")
+@app.get("/historial/{ticker}")
+def obtener_historial_precios(ticker: str, db: Session = Depends(get_db)):
+    ticker = ticker.upper()
+    asset = yf.Ticker(ticker)
     
+    # Traemos el historial de 1 mes (pueden ser unos 20-22 días hábiles de mercado)
+    hist = asset.history(period="1mo")
+    
+    if hist.empty:
+        raise HTTPException(status_code=404, detail=f"No se encontró historial para el ticker {ticker}")
+    
+    # 1. LIMPIEZA DE SEGURIDAD: Borramos el historial viejo que tengamos de ESTE ticker en la DB
+    # Así evitamos duplicar filas si el usuario consulta el mismo ticker varias veces.
+    db.query(models.PriceHistory).filter(models.PriceHistory.ticker == ticker).delete()
+    
+    # 2. Preparamos una lista vacía para acumular todas las filas del mes
+    nuevas_filas = []
+    
+    # 3. Recorremos el DataFrame de yfinance fila por fila
+    for index, row in hist.iterrows():
+        # index es la fecha que nos da yfinance (a veces viene con zona horaria, por eso usamos .date())
+        fecha_limpia = index.date()
+        
+        # Creamos el objeto del modelo para cada día
+        registro_dia = models.PriceHistory(
+            ticker=ticker,
+            fecha=fecha_limpia,
+            precio_apertura=float(row['Open']),
+            precio_maximo=float(row['High']),
+            precio_minimo=float(row['Low']),
+            precio_cierre=float(row['Close']),
+            volumen=int(row['Volume'])
+        )
+        nuevas_filas.append(registro_dia)
+    
+    # 4. BULK INSERT: Agregamos toda la lista de filas de un solo viaje a la sesión
+    db.add_all(nuevas_filas)
+    
+    # 5. Impactamos de verdad en PostgreSQL
+    db.commit()
+    print(f"📈 ¡Se guardaron {len(nuevas_filas)} días de historial para {ticker} en la base de datos!")
+    
+    # 6. Formateamos la respuesta JSON que le vuelve al usuario para mantener la estructura de antes
+    respuesta = []
+    for fila in nuevas_filas:
+        respuesta.append({
+            "fecha": fila.fecha.strftime("%Y-%m-%d"),
+            "apertura": fila.precio_apertura,
+            "maximo": fila.precio_maximo,
+            "minimo": fila.precio_minimo,
+            "cierre": fila.precio_cierre,
+            "volumen": fila.volumen
+        })
+        
+    return respuesta

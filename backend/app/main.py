@@ -1,5 +1,10 @@
 from fastapi import FastAPI, HTTPException
 import yfinance as yf
+from app.database import engine
+import app.models as models
+
+# Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MarketLens API", version="0.1.0")
 
@@ -78,3 +83,4 @@ def obtener_historial_precios(ticker: str, periodo: str = "1mo"):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener el historial: {str(e)}")
+    

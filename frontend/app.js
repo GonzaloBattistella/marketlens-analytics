@@ -76,6 +76,69 @@ function cargarIndicadores() {
         });
 }
 
+
+// FUNCIÓN 2: Escuchar el formulario de búsqueda para agregar nuevos activos
+const buscadorForm = document.getElementById("buscador-form");
+const tickerInput = document.getElementById("ticker-input");
+const mensajeBusqueda = document.getElementById("mensaje-busqueda");
+
+buscadorForm.addEventListener("submit", (e) => {
+    // Evitamos que la página se recargue de golpe (comportamiento por defecto de los formularios HTML)
+    e.preventDefault(); 
+    
+    // Agarramos el texto del input, le sacamos los espacios y lo pasamos a mayúsculas
+    const ticker = tickerInput.value.trim().toUpperCase();
+    
+    if (!ticker) return;
+
+    // Mostramos un estado de "Cargando..." en la pantalla
+    mensajeBusqueda.textContent = `🔍 Buscando ${ticker} en Wall Street...`;
+    mensajeBusqueda.className = "text-sm mt-2 text-blue-400 font-medium";
+    mensajeBusqueda.classList.remove("hidden");
+
+    // Deshabilitamos el botón un segundo para que el usuario no haga 20 clics seguidos
+    const botonSubmit = buscadorForm.querySelector("button");
+    botonSubmit.disabled = true;
+    botonSubmit.classList.add("opacity-50", "cursor-not-allowed");
+
+    // Le pegamos al endpoint del Backend que va a Yahoo Finance y guarda en Postgres
+    fetch(`${API_URL}/indicadores/${ticker}`)
+        .then(response => {
+            if (!response.ok) {
+                // Si el backend devuelve un 404 o 500, asumimos que el ticker no existe o falló la API
+                throw new Error(`No se encontró el ticker "${ticker}" o la API falló.`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // ¡Éxito! El backend ya lo guardó en la DB
+            mensajeBusqueda.textContent = `✨ ¡${ticker} (${data.nombre}) agregado con éxito a la base de datos!`;
+            mensajeBusqueda.className = "text-sm mt-2 text-green-400 font-medium";
+            
+            // Limpiamos el campo de texto
+            tickerInput.value = "";
+
+            // REFRESCAMOS LA TABLA: Volvemos a leer de la DB para que aparezca la nueva fila al instante
+            cargarIndicadores();
+        })
+        .catch(error => {
+            console.error("Error en la búsqueda:", error);
+            mensajeBusqueda.textContent = `❌ Error: No se pudo encontrar el ticker "${ticker}". Verificá que esté bien escrito.`;
+            mensajeBusqueda.className = "text-sm mt-2 text-red-400 font-medium";
+        })
+        .finally(() => {
+            // Volvemos a habilitar el botón cuando termine todo el proceso (haya salido bien o mal)
+            botonSubmit.disabled = false;
+            botonSubmit.classList.remove("opacity-50", "cursor-not-allowed");
+            
+            // Escondemos el mensaje automáticamente después de 4 segundos para que quede limpio
+            setTimeout(() => {
+                mensajeBusqueda.classList.add("hidden");
+            }, 4000);
+        });
+});
+
+
 // Función auxiliar que usaremos más adelante para el gráfico
 function verHistorial(ticker) {
     alert(`Próximamente: Vamos a dibujar el gráfico para ${ticker}`);

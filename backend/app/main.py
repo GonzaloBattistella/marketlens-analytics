@@ -154,17 +154,53 @@ def leer_indicadores_db(db: Session = Depends(get_db)):
 def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
     ticker = ticker.upper()
     
-    # Buscamos en price_history filtrando por ticker y ordenando por fecha ascendente
+    # Intentamos buscar en la base de datos primero
     historial = db.query(models.PriceHistory)\
                   .filter(models.PriceHistory.ticker == ticker)\
                   .order_by(models.PriceHistory.fecha.asc())\
                   .all()
                   
-    # Si no encontramos filas para ese ticker en la DB, tiramos un 404
+    # Si NO hay datos en la DB, los vamos a buscar a internet automáticamente
     if not historial:
-        raise HTTPException(
-            status_code=404, 
-            detail=f"No se encontraron datos históricos en la DB para {ticker}. Primero debés consultar /historial/{ticker}"
-        )
+        print(f"🚀 {ticker} no está en la DB. Descargando historial de Yahoo Finance...")
+        try:
+            import yfinance as yf
+            import pandas as pd
+            
+            # Buscamos el historial en yfinance
+            stock = yf.Ticker(ticker)
+            df = stock.history(period="30d")
+            
+            if df.empty:
+                raise HTTPException(status_code=404, detail=f"No se encontraron datos en Yahoo para {ticker}")
+                
+            # Formateamos y guardamos en lote igual que hacías en la otra ruta
+            nuevas_filas = []
+            for indice, fila in df.iterrows():
+                nueva_fecha = indice.date()
+                nuevo_registro = models.PriceHistory(
+                    ticker=ticker,
+                    fecha=nueva_fecha,
+                    precio_apertura=float(fila['Open']),
+                    precio_maximo=float(fila['High']),
+                    precio_minimo=float(fila['Low']),
+                    precio_cierre=float(fila['Close']),
+                    volumen=int(fila['Volume'])
+                )
+                nuevas_filas.append(nuevo_registro)
+            
+            # Guardamos en Postgres
+            db.bulk_save_objects(nuevas_filas)
+            db.commit()
+            
+            # Volvemos a consultar la DB ahora que ya tiene los datos guardados
+            historial = db.query(models.PriceHistory)\
+                          .filter(models.PriceHistory.ticker == ticker)\
+                          .order_by(models.PriceHistory.fecha.asc())\
+                          .all()
+                          
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Error al automatizar el historial: {str(e)}")
         
     return historial

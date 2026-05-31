@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MarketLens - Tablero Financiero</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
 
@@ -18,7 +19,7 @@
     <main class="container mx-auto p-6 space-y-8">
         
         <section class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
-            <h2 class="text-lg font-bold mb-3 text-gray-300">Agregar nuevo activo a la base de datos</h2>
+            <h2 class="text-lg font-bold mb-3 text-gray-300">Buscar Activo</h2>
             <form id="buscador-form" class="flex gap-4 max-w-md">
                 <input 
                     type="text" 
@@ -61,6 +62,25 @@
                     <tbody id="tabla-indicadores-body" class="divide-y divide-gray-700 text-sm">
                         </tbody>
                 </table>
+            </div>
+        </section>
+
+        <section id="seccion-grafico" class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 id="grafico-titulo" class="text-xl font-bold text-white">Historial de Precios</h2>
+                    <p class="text-sm text-gray-450">Evolución del precio de cierre (Últimos 30 días en tu DB)</p>
+                </div>
+                <button 
+                    class="text-gray-400 hover:text-white text-sm bg-gray-700 px-3 py-1 rounded-lg border border-gray-600"
+                    onclick="document.getElementById('seccion-grafico').classList.add('hidden')"
+                >
+                    ✕ Cerrar
+                </button>
+            </div>
+
+            <div class="relative w-full h-80">
+                <canvas id="historicoChart"></canvas>
             </div>
         </section>
 

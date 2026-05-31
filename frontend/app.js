@@ -1,6 +1,8 @@
 // URL base de tu backend de FastAPI
 const API_URL = "http://127.0.0.1:8000";
 
+let miGrafico = null;
+
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
 document.addEventListener("DOMContentLoaded", () => {
     cargarIndicadores();
@@ -139,7 +141,81 @@ buscadorForm.addEventListener("submit", (e) => {
 });
 
 
-// Función auxiliar que usaremos más adelante para el gráfico
+// FUNCIÓN 3: Buscar el historial en la DB y dibujar el gráfico interactivo
 function verHistorial(ticker) {
-    alert(`Próximamente: Vamos a dibujar el gráfico para ${ticker}`);
+    const seccionGrafico = document.getElementById("seccion-grafico");
+    const graficoTitulo = document.getElementById("grafico-titulo");
+    
+    // Mostramos la sección del gráfico (le sacamos la clase 'hidden' de Tailwind)
+    seccionGrafico.classList.remove("hidden");
+    graficoTitulo.textContent = `📈 Historial de Precios: ${ticker}`;
+
+    // Le pegamos a tu endpoint de lectura rápida de la base de datos
+    fetch(`${API_URL}/db/historial/${ticker}`) // <-- Verificá si tu ruta quedó como /db/historial o /db/db/historial según tu main.py
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("No hay historial guardado para este activo.");
+            }
+            return response.json();
+        })
+        .then(datosHistorial => {
+            // Procesamos los datos que nos dio Postgres: extraemos las fechas y los precios de cierre
+            const etiquetasFechas = datosHistorial.map(dia => dia.fecha);
+            const preciosCierre = datosHistorial.map(dia => dia.precio_cierre);
+
+            // Obtener el contexto del canvas HTML
+            const ctx = document.getElementById('historicoChart').getContext('2d');
+
+            // REGLA DE CHART.JS: Si ya había un gráfico dibujado de otra acción, hay que destruirlo antes de crear el nuevo
+            if (miGrafico) {
+                miGrafico.destroy();
+            }
+
+            // Creamos el nuevo gráfico de líneas con la configuración estética de MarketLens
+            miGrafico = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: etiquetasFechas, // Eje X: Fechas
+                    datasets: [{
+                        label: 'Precio de Cierre (USD)',
+                        data: preciosCierre, // Eje Y: Precios
+                        borderColor: '#3b82f6', // Azul de Tailwind (blue-500)
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)', // Sombreado celeste transparente abajo de la línea
+                        borderWidth: 3,
+                        tension: 0.2, // Suavizado de la curva de la línea
+                        pointBackgroundColor: '#60a5fa',
+                        pointRadius: 3,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false } // Escondemos el cuadradito de la leyenda para que quede más limpio
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#374151' }, // Color gris oscuro para las líneas de fondo (gray-700)
+                            ticks: { color: '#9ca3af' }  // Color del texto de las fechas (gray-400)
+                        },
+                        y: {
+                            grid: { color: '#374151' },
+                            ticks: { 
+                                color: '#9ca3af',
+                                callback: function(value) { return '$' + value.toFixed(2); } // Le agrega el '$' a los precios del eje Y
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Auto-scrollear suavemente hasta la sección del gráfico para que el usuario lo vea
+            seccionGrafico.scrollIntoView({ behavior: 'smooth' });
+        })
+        .catch(error => {
+            console.error("Error técnico real:", error);
+            console.error("Error al graficar:", error);
+            alert(`⚠️ Para graficar ${ticker}, primero debés consultar el endpoint de actualización (/historial/${ticker}) en el navegador para poblar la base de datos por primera vez.`);
+        });
 }

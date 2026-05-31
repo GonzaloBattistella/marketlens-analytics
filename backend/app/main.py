@@ -138,6 +138,7 @@ def obtener_historial_precios(ticker: str, db: Session = Depends(get_db)):
 #          ENDPOINTS DE LECTURA DIRECTA DESDE LA DB
 # ----------------------------------------------------------------
 
+# Indicadores DB
 @app.get("/db/indicadores")
 def leer_indicadores_db(db: Session = Depends(get_db)):
     # Hacemos una consulta a la tabla market_indicators y traemos TODO (.all())
@@ -150,6 +151,7 @@ def leer_indicadores_db(db: Session = Depends(get_db)):
     return activos
 
 
+# Historial DB
 @app.get("/db/historial/{ticker}")
 def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
     ticker = ticker.upper()
@@ -164,9 +166,6 @@ def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
     if not historial:
         print(f"🚀 {ticker} no está en la DB. Descargando historial de Yahoo Finance...")
         try:
-            import yfinance as yf
-            import pandas as pd
-            
             # Buscamos el historial en yfinance
             stock = yf.Ticker(ticker)
             df = stock.history(period="30d")
@@ -204,3 +203,58 @@ def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail=f"Error al automatizar el historial: {str(e)}")
         
     return historial
+
+# Refrescar - Actualizar indicadores e historial DB.
+@app.post("/db/refrescar")
+def refrescar_todos_los_indicadores_e_historiales(db: Session = Depends(get_db)):
+    try:
+        import yfinance as yf
+        
+        activos_guardados = db.query(models.MarketIndicator).all()
+        
+        if not activos_guardados:
+            return {"message": "No hay activos en la DB para actualizar."}
+            
+        print(f"🔄 Refrescando indicadores e historiales de {len(activos_guardados)} activos...")
+        
+        for activo in activos_guardados:
+            stock = yf.Ticker(activo.ticker)
+            
+            # --- 1. ACTUALIZAR CUADRO DE INDICADORES ---
+            datos_hoy = stock.history(period="1d")
+            if not datos_hoy.empty:
+                info_reciente = datos_hoy.iloc[0]
+                precio_actual = float(info_reciente['Close'])
+                precio_apertura = float(info_reciente['Open'])
+                activo.precio_actual = precio_actual
+                activo.variacion_porcentual = ((precio_actual - precio_apertura) / precio_apertura) * 100
+
+            # --- 2. ACTUALIZAR HISTORIAL (Evitamos datos viejos) ---
+            # Borramos el historial viejo de este activo en Postgres
+            db.query(models.PriceHistory).filter(models.PriceHistory.ticker == activo.ticker).delete()
+            
+            # Descargamos los 30 días más recientes de internet
+            df_historial = stock.history(period="30d")
+            nuevas_filas = []
+            for indice, fila in df_historial.iterrows():
+                nuevo_registro = models.PriceHistory(
+                    ticker=activo.ticker,
+                    fecha=indice.date(),
+                    precio_apertura=float(fila['Open']),
+                    precio_maximo=float(fila['High']),
+                    precio_minimo=float(fila['Low']),
+                    precio_cierre=float(fila['Close']),
+                    volumen=int(fila['Volume'])
+                )
+                nuevas_filas.append(nuevo_registro)
+            
+            # Guardamos el bloque nuevo en Postgres utilizando bulk_save.
+            db.bulk_save_objects(nuevas_filas)
+        
+        # Guardamos todo de un solo viaje
+        db.commit()
+        return {"status": "success", "message": "Indicadores e historiales actualizados correctamente."}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al refrescar la DB: {str(e)}")

@@ -219,3 +219,62 @@ function verHistorial(ticker) {
             alert(`⚠️ Para graficar ${ticker}, primero debés consultar el endpoint de actualización (/historial/${ticker}) en el navegador para poblar la base de datos por primera vez.`);
         });
 }
+
+
+// FUNCIÓN 4: Refrescar toda la DB (Indicadores + Historiales) con Cooldown de seguridad
+const btnRefrescar = document.getElementById("btn-refrescar");
+
+if (btnRefrescar) {
+    btnRefrescar.addEventListener("click", () => {
+        // 1. Bloqueamos el botón inmediatamente para evitar clics repetidos
+        btnRefrescar.disabled = true;
+        btnRefrescar.classList.add("opacity-50", "cursor-not-allowed");
+        btnRefrescar.innerHTML = "🔄 Actualizando todo...";
+
+        // 2. Le pegamos al backend inteligente que creamos recién
+        fetch(`${API_URL}/db/refrescar`, { method: "POST" })
+            .then(response => {
+                if (!response.ok) throw new Error("Error al refrescar los datos del servidor.");
+                return response.json();
+            })
+            .then(data => {
+                console.log("DB Refrescada:", data.message);
+                
+                // 3. Como los datos cambiaron en Postgres, refrescamos la tabla visual
+                cargarIndicadores();
+                
+                // 4. Activamos el contador de "Enfriamiento" (Cooldown) de 60 segundos
+                iniciarEnfriamientoBoton(60);
+            })
+            .catch(error => {
+                console.error("Error al refrescar:", error);
+                alert("❌ No se pudo refrescar la base de datos. Intentá nuevamente.");
+                
+                // Si falla, le devolvemos el estado normal al botón al toque
+                btnRefrescar.disabled = false;
+                btnRefrescar.classList.remove("opacity-50", "cursor-not-allowed");
+                btnRefrescar.innerHTML = "🔄 Refrescar DB";
+            });
+    });
+}
+
+// Función auxiliar para manejar la cuenta regresiva del botón
+function iniciarEnfriamientoBoton(segundosTotales) {
+    let tiempoRestante = segundosTotales;
+    
+    // Usamos un intervalo que se ejecuta cada 1 segundo (1000ms)
+    const temporizador = setInterval(() => {
+        tiempoRestante--;
+        
+        if (tiempoRestante > 0) {
+            // Mostramos los segundos que faltan para poder volver a clickear
+            btnRefrescar.innerHTML = `⏳ Esperá ${tiempoRestante}s...`;
+        } else {
+            // ¡Se cumplió el tiempo! Limpiamos el intervalo y revivimos el botón
+            clearInterval(temporizador);
+            btnRefrescar.disabled = false;
+            btnRefrescar.classList.remove("opacity-50", "cursor-not-allowed");
+            btnRefrescar.innerHTML = "🔄 Refrescar DB";
+        }
+    }, 1000);
+}

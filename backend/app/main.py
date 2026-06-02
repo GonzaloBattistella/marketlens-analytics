@@ -258,3 +258,32 @@ def refrescar_todos_los_indicadores_e_historiales(db: Session = Depends(get_db))
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al refrescar la DB: {str(e)}")
+    
+
+# Eliminar Activo
+@app.delete("/db/indicadores/{ticker}")
+def eliminar_indicador(ticker: str, db: Session = Depends(get_db)):
+    try:
+        # Pasamos el ticker a mayusuculas, para evitar problemas de tipeo.
+        ticker_upper = ticker.upper()
+
+        activo = db.query(models.MarketIndicator).filter(models.MarketIndicator.ticker == ticker_upper).first()
+
+        if not activo: 
+            # si no existe, arrojamos un eror 404.
+            raise HTTPException(status_code=404, detail=f"El activo {ticker_upper} no existe en la base de datos.")
+        
+        # Borramos todo el historial de ese ticker.
+        db.query(models.PriceHistory).filter(models.PriceHistory.ticker == ticker_upper).delete()
+
+        # Borramos el activo.
+        db.delete(activo)
+
+        # Guardamos los datos en la base de datos.
+        db.commit()
+
+        return {"status": "success", "message": f"Activo {ticker_upper} e historial eliminados correctamente."}
+
+    except Exception as e:
+        db.rollback() # Limpio la session por si algo falla.
+        raise HTTPException(status_code=500, detail=f"Error al eliminar el activo: {str(e)}")

@@ -56,10 +56,17 @@ function cargarIndicadores() {
                     <td class="p-4 text-right font-semibold">$${activo.precio_actual.toFixed(2)}</td>
                     <td class="p-4 text-right font-semibold ${claseColor}">${signo}${activo.variacion_porcentual.toFixed(2)}%</td>
                     <td class="p-4 text-right text-gray-400">${capMercadoFormateada}</td>
-                    <td class="p-4 text-center">
+                    <td class="pl-6 pr-4 py-4 flex flex-row items-center justify-end gap-3 whitespace-nowrap">
                         <button class="bg-gray-700 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded transition" onclick="verHistorial('${activo.ticker}')">
                             📈 Ver Historial
                         </button>
+
+                        <button onclick="eliminarActivo('${activo.ticker}')"
+                        title= "Eliminar Activo"
+                        class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1">
+                            🗑️
+                        </button>
+
                     </td>
                 `;
                 
@@ -183,7 +190,7 @@ function verHistorial(ticker) {
                         backgroundColor: 'rgba(59, 130, 246, 0.1)', // Sombreado celeste transparente abajo de la línea
                         borderWidth: 3,
                         tension: 0.2, // Suavizado de la curva de la línea
-                        pointBackgroundColor: '#60a5fa',
+                        pointBackgroundColor: '#3b82f6',
                         pointRadius: 3,
                         pointHoverRadius: 6
                     }]
@@ -277,4 +284,80 @@ function iniciarEnfriamientoBoton(segundosTotales) {
             btnRefrescar.innerHTML = "🔄 Refrescar DB";
         }
     }, 1000);
+}
+
+// FUNCIÓN 5: Eliminar un activo usando el Modal Personalizado
+function eliminarActivo(ticker) {
+    // 1. Capturamos los elementos del modal que pusimos en el HTML
+    const modal = document.getElementById("modal-confirmacion");
+    const modalTitulo = document.getElementById("modal-titulo");
+    const modalMensaje = document.getElementById("modal-mensaje");
+    const btnConfirmar = document.getElementById("btn-modal-confirmar");
+    const btnCancelar = document.getElementById("btn-modal-cancelar");
+
+    // 2. Personalizamos el texto del cartel con el ticker actual
+    modalMensaje.innerHTML = `¿Estás seguro de que querés eliminar a <strong class="text-white">${ticker}</strong> de tu lista de indicadores?`;
+    modalTitulo.innerText = "¿Eliminar activo?";
+    modalTitulo.className = "text-xl font-bold text-white mb-2"; // Vuelve a ser blanco
+    btnConfirmar.classList.remove("hidden"); // Reaparece el botón de "Sí, eliminar"
+    btnCancelar.innerText = "Cancelar"; // El botón vuelve a decir cancelar
+    btnCancelar.className = "bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors";
+
+    // 3. Mostramos el modal sacándole la clase 'hidden'
+    modal.classList.remove("hidden");
+
+    // 4. Creamos la función que se ejecutará si el usuario dice que SÍ
+    const manejarConfirmacion = () => {
+        console.log(`🗑️ Eliminando de forma confirmada: ${ticker}`);
+        
+        // Hacemos el fetch que ya teníamos programado
+        fetch(`${API_URL}/db/indicadores/${ticker}`, { method: "DELETE" })
+            .then(response => {
+                if (!response.ok) throw new Error("Error al eliminar del servidor.");
+                return response.json();
+            })
+            .then(data => {
+                // CASO DE ÉXITO: En vez de cerrar el modal de golpe, le avisamos al usuario
+                modalTitulo.innerText = "✨ ¡Éxito!";
+                modalTitulo.className = "text-xl font-bold text-emerald-400 mb-2"; // Verde lindo financiera
+                modalMensaje.innerHTML = `El activo <strong>${ticker}</strong> y su historial se eliminaron correctamente.`;
+                
+                // Ocultamos los dos botones viejos y creamos un botón temporal de "OK"
+                btnConfirmar.classList.add("hidden");
+                btnCancelar.innerText = "Entendido";
+                
+                // Cuando toca "Entendido", refrescamos la tabla y cerramos del todo
+                const finalizarTodo = () => {
+                    cerrarModal();
+                    cargarIndicadores();
+                    btnCancelar.removeEventListener("click", finalizarTodo);
+                };
+                btnCancelar.addEventListener("click", finalizarTodo);
+            })
+            .catch(error => {
+                console.error(error);
+                
+                // CASO DE ERROR: Transformamos el modal en un cartel de alerta rojo
+                modalTitulo.innerText = "⚠️ Hubo un problema";
+                modalTitulo.className = "text-xl font-bold text-red-500 mb-2"; // Rojo de advertencia
+                modalMensaje.innerHTML = `No se pudo eliminar a <strong>${ticker}</strong>.<br><span class="text-xs text-slate-500">Detalle: ${error.message}</span>`;
+                
+                // Ocultamos el botón de confirmar (porque ya falló) y el de cancelar dice "Cerrar"
+                btnConfirmar.classList.add("hidden");
+                btnCancelar.innerText = "Cerrar";
+                btnCancelar.className = "bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors";
+            });
+    };
+
+    // 5. Función auxiliar para cerrar el cartel y limpiar los eventos
+    const cerrarModal = () => {
+        modal.classList.add("hidden");
+        // Removemos los listeners para que no se acumulen para el próximo clic
+        btnConfirmar.removeEventListener("click", manejarConfirmacion);
+        btnCancelar.removeEventListener("click", cerrarModal);
+    };
+
+    // 6. Escuchamos los clics de los botones del modal
+    btnConfirmar.addEventListener("click", manejarConfirmacion);
+    btnCancelar.addEventListener("click", cerrarModal);
 }

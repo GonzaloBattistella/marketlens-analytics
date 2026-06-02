@@ -158,7 +158,7 @@ function verHistorial(ticker) {
     graficoTitulo.textContent = `📈 Historial de Precios: ${ticker}`;
 
     // Le pegamos a tu endpoint de lectura rápida de la base de datos
-    fetch(`${API_URL}/db/historial/${ticker}`) // <-- Verificá si tu ruta quedó como /db/historial o /db/db/historial según tu main.py
+    fetch(`${API_URL}/db/historial/${ticker}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error("No hay historial guardado para este activo.");
@@ -166,67 +166,177 @@ function verHistorial(ticker) {
             return response.json();
         })
         .then(datosHistorial => {
-            // Procesamos los datos que nos dio Postgres: extraemos las fechas y los precios de cierre
+            // ==========================================
+            // 🛠️ PASO 2: PROCESAMIENTO Y CÁLCULOS (Aquí va!)
+            // ==========================================
             const etiquetasFechas = datosHistorial.map(dia => dia.fecha);
             const preciosCierre = datosHistorial.map(dia => dia.precio_cierre);
+            
+            // 📊 Nuevos arrays extraídos de lo que nos manda Postgres
+            const volumenes = datosHistorial.map(dia => dia.volumen || 0);
+            const preciosApertura = datosHistorial.map(dia => dia.precio_apertura);
+            const preciosMaximos = datosHistorial.map(dia => dia.precio_maximo);
+            const preciosMinimos = datosHistorial.map(dia => dia.precio_minimo);
+
+            // 📐 Cálculos para las líneas horizontales de referencia
+            const maximoAbsoluto = Math.max(...preciosMaximos);
+            const minimoAbsoluto = Math.min(...preciosMinimos);
+            const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
+            const promedioPrecio = sumaCierres / preciosCierre.length;
 
             // Obtener el contexto del canvas HTML
             const ctx = document.getElementById('historicoChart').getContext('2d');
 
-            // REGLA DE CHART.JS: Si ya había un gráfico dibujado de otra acción, hay que destruirlo antes de crear el nuevo
+            // REGLA DE CHART.JS: Si ya había un gráfico dibujado de otra acción, hay que destruirlo
             if (miGrafico) {
                 miGrafico.destroy();
             }
 
-            // Creamos el nuevo gráfico de líneas con la configuración estética de MarketLens
+            // ==========================================
+            // 🛠️ PASO 3: NUEVA CONFIGURACIÓN DEL CHART
+            // ==========================================
             miGrafico = new Chart(ctx, {
-                type: 'line',
                 data: {
                     labels: etiquetasFechas, // Eje X: Fechas
-                    datasets: [{
-                        label: 'Precio de Cierre (USD)',
-                        data: preciosCierre, // Eje Y: Precios
-                        borderColor: '#3b82f6', // Azul de Tailwind (blue-500)
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)', // Sombreado celeste transparente abajo de la línea
-                        borderWidth: 3,
-                        tension: 0.2, // Suavizado de la curva de la línea
-                        pointBackgroundColor: '#3b82f6',
-                        pointRadius: 3,
-                        pointHoverRadius: 6
-                    }]
+                    datasets: [
+                        {
+                            type: 'line', // Dataset 1: Línea del precio
+                            label: 'Precio de Cierre (USD)',
+                            data: preciosCierre,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.05)', // Más sutil para que no tape las barras
+                            borderWidth: 3,
+                            tension: 0.2,
+                            pointBackgroundColor: '#3b82f6',
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            yAxisID: 'y' // <--- Atado al eje de la izquierda
+                        },
+                        {
+                            type: 'bar', // Dataset 2: Barras de volumen
+                            label: 'Volumen Diario',
+                            data: volumenes,
+                            backgroundColor: 'rgba(156, 163, 175, 0.15)', // Gris transparente
+                            hoverBackgroundColor: 'rgba(156, 163, 175, 0.3)',
+                            yAxisID: 'yVolumen', // <--- Atado al eje de la derecha
+                            barThickness: 'flex'
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false } // Escondemos el cuadradito de la leyenda para que quede más limpio
+                        legend: { display: false }, // Mantiene limpia la cabecera
+                        
+                        // 🎯 TOOLTIP AVANZADO (La radiografía del día)
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    // Si pasa el mouse por la línea de precios (Index 0), despliega la data completa
+                                    if (context.datasetIndex === 0) {
+                                        return [
+                                            `🟢 Apertura: $${preciosApertura[index].toFixed(2)}`,
+                                            `🔵 Cierre: $${preciosCierre[index].toFixed(2)}`,
+                                            `🔺 Máximo: $${preciosMaximos[index].toFixed(2)}`,
+                                            `🔻 Mínimo: $${preciosMinimos[index].toFixed(2)}`,
+                                            `📊 Vol: ${volumenes[index].toLocaleString()}`
+                                        ];
+                                    }
+                                    // Si toca la barra de volumen, solo muestra el volumen
+                                    return `📊 Volumen: ${context.raw.toLocaleString()}`;
+                                }
+                            }
+                        },
+
+                        // LÍNEAS HORIZONTALES (Anotaciones de soporte/resistencia/promedio)
+                        annotation: {
+                            annotations: {
+                                lineaMax: {
+                                    type: 'line',
+                                    yMin: maximoAbsoluto,
+                                    yMax: maximoAbsoluto,
+                                    borderColor: 'rgba(239, 68, 68, 0.4)', // Rojo sutil
+                                    borderWidth: 1.5,
+                                    borderDash: [4, 4], // Punteado
+                                    label: {
+                                        display: true,
+                                        content: `Máx: $${maximoAbsoluto.toFixed(2)}`,
+                                        position: 'start',
+                                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                                        style: { fontSize: 10 }
+                                    }
+                                },
+                                lineaMin: {
+                                    type: 'line',
+                                    yMin: minimoAbsoluto,
+                                    yMax: minimoAbsoluto,
+                                    borderColor: 'rgba(34, 197, 94, 0.4)', // Verde sutil
+                                    borderWidth: 1.5,
+                                    borderDash: [4, 4],
+                                    label: {
+                                        display: true,
+                                        content: `Mín: $${minimoAbsoluto.toFixed(2)}`,
+                                        position: 'start',
+                                        backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                                        style: { fontSize: 10 }
+                                    }
+                                },
+                                lineaPromedio: {
+                                    type: 'line',
+                                    yMin: promedioPrecio,
+                                    yMax: promedioPrecio,
+                                    borderColor: 'rgba(234, 179, 8, 0.3)', // Amarillo sutil
+                                    borderWidth: 1.5,
+                                    borderDash: [6, 6],
+                                    label: {
+                                        display: true,
+                                        content: `Prom: $${promedioPrecio.toFixed(2)}`,
+                                        position: 'end',
+                                        backgroundColor: 'rgba(234, 179, 8, 0.6)',
+                                        style: { fontSize: 10 }
+                                    }
+                                }
+                            }
+                        }
                     },
                     scales: {
                         x: {
-                            grid: { color: '#374151' }, // Color gris oscuro para las líneas de fondo (gray-700)
-                            ticks: { color: '#9ca3af' }  // Color del texto de las fechas (gray-400)
+                            grid: { color: '#374151', display: false }, // Sacamos verticales para limpiar el gráfico
+                            ticks: { color: '#9ca3af' }
                         },
                         y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left', // Eje precio a la izquierda
                             grid: { color: '#374151' },
                             ticks: { 
                                 color: '#9ca3af',
-                                callback: function(value) { return '$' + value.toFixed(2); } // Le agrega el '$' a los precios del eje Y
+                                callback: function(value) { return '$' + value.toFixed(2); }
                             }
+                        },
+                        yVolumen: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right', // Eje volumen a la derecha
+                            grid: { display: false }, // No duplicamos las líneas horizontales
+                            ticks: { color: '#6b7280', display: false }, // Escondemos los números del volumen para no saturar la vista
+                            // Multiplicamos por 4 el máximo para forzar a que las barras de volumen se queden abajo de todo
+                            max: Math.max(...volumenes) * 4 
                         }
                     }
                 }
             });
 
-            // Auto-scrollear suavemente hasta la sección del gráfico para que el usuario lo vea
+            // Auto-scrollear suavemente hasta la sección del gráfico
             seccionGrafico.scrollIntoView({ behavior: 'smooth' });
         })
         .catch(error => {
             console.error("Error técnico real:", error);
-            console.error("Error al graficar:", error);
             alert(`⚠️ Para graficar ${ticker}, primero debés consultar el endpoint de actualización (/historial/${ticker}) en el navegador para poblar la base de datos por primera vez.`);
         });
 }
-
 
 // FUNCIÓN 4: Refrescar toda la DB (Indicadores + Historiales) con Cooldown de seguridad
 const btnRefrescar = document.getElementById("btn-refrescar");

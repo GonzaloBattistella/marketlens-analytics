@@ -209,6 +209,47 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
     const promedioPrecio = sumaCierres / preciosCierre.length;
 
+    // Configuracion dinamica del dataset principal.
+    let datasetPrincipal = {};
+
+    if (tipoVistaActual === 'linea') {
+        // configuracion clasica de linea azul que ya tenia.
+        datasetPrincipal = {
+            type: 'line',
+            label: 'Precio de Cierre (USD)',
+            data: preciosCierre,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+            borderWidth: 3,
+            tension: 0.2,
+            pointBackgroundColor: '#3b82f6',
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            yAxisID: 'y'
+        };
+    } else {
+        // Configuración para Gráfico de Velas Japonesas
+        datasetPrincipal = {
+            type: 'candlestick',
+            label: 'Precios OHLC',
+            // Mapeamos los datos en la estructura especial {x, o, h, l, c} que pide el plugin financiero
+            data: datosARenderizar.map(dia => ({
+                x: luxon.DateTime.fromISO(dia.fecha).valueOf(), // Convierte la fecha a timestamp numérico
+                o: dia.precio_apertura,
+                h: dia.precio_maximo,
+                l: dia.precio_minimo,
+                c: dia.precio_cierre
+            })),
+            yAxisID: 'y',
+            // Colores profesionales de trading en Dark Mode:
+            color: {
+                up: '#10b981',    // Verde esmeralda para días alcistas (Tailwind emerald-500)
+                down: '#ef4444',  // Rojo para días bajistas (Tailwind red-500)
+                unchanged: '#94a3b8' // Gris si cerró igual
+            }
+        };
+    }
+
     const ctx = document.getElementById('historicoChart').getContext('2d');
 
     if (miGrafico) {
@@ -218,30 +259,22 @@ function actualizarGraficoProcesado(datosARenderizar) {
     // ==========================================
     //      NUEVA CONFIGURACIÓN DEL CHART
     // ==========================================
+    if (miGrafico) {
+        miGrafico.destroy();
+    }
+
     miGrafico = new Chart(ctx, {
         data: {
-            labels: etiquetasFechas, // Eje X: Fechas
+            labels: etiquetasFechas, 
             datasets: [
+                datasetPrincipal, // 👈 Inyectamos dinámicamente la Línea o las Velas aquí
                 {
-                    type: 'line', // Dataset 1: Línea del precio
-                    label: 'Precio de Cierre (USD)',
-                    data: preciosCierre,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.05)', // Más sutil para que no tape las barras
-                    borderWidth: 3,
-                    tension: 0.2,
-                    pointBackgroundColor: '#3b82f6',
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    yAxisID: 'y' // <--- Atado al eje de la izquierda
-                },
-                {
-                    type: 'bar', // Dataset 2: Barras de volumen
+                    type: 'bar',
                     label: 'Volumen Diario',
                     data: volumenes,
-                    backgroundColor: 'rgba(156, 163, 175, 0.15)', // Gris transparente
+                    backgroundColor: 'rgba(156, 163, 175, 0.15)',
                     hoverBackgroundColor: 'rgba(156, 163, 175, 0.3)',
-                    yAxisID: 'yVolumen', // <--- Atado al eje de la derecha
+                    yAxisID: 'yVolumen',
                     barThickness: 'flex'
                 }
             ]
@@ -250,14 +283,11 @@ function actualizarGraficoProcesado(datosARenderizar) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }, // Mantiene limpia la cabecera
-                
-                // 🎯 TOOLTIP AVANZADO (La radiografía del día)
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             const index = context.dataIndex;
-                            // Si pasa el mouse por la línea de precios (Index 0), despliega la data completa
                             if (context.datasetIndex === 0) {
                                 return [
                                     `🟢 Apertura: $${preciosApertura[index].toFixed(2)}`,
@@ -267,87 +297,53 @@ function actualizarGraficoProcesado(datosARenderizar) {
                                     `📊 Vol: ${volumenes[index].toLocaleString()}`
                                 ];
                             }
-                            // Si toca la barra de volumen, solo muestra el volumen
-                            return `📊 Volumen: ${context.raw.toLocaleString()}`;
+                                return `📊 Volumen: ${context.raw.toLocaleString()}`;
                         }
                     }
                 },
-
-                // LÍNEAS HORIZONTALES (Anotaciones de soporte/resistencia/promedio)
                 annotation: {
                     annotations: {
                         lineaMax: {
-                            type: 'line',
-                            yMin: maximoAbsoluto,
-                            yMax: maximoAbsoluto,
-                            borderColor: 'rgba(239, 68, 68, 0.4)', // Rojo sutil
-                            borderWidth: 1.5,
-                            borderDash: [4, 4], // Punteado
-                            label: {
-                                display: true,
-                                content: `Máx: $${maximoAbsoluto.toFixed(2)}`,
-                                position: 'start',
-                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                                style: { fontSize: 10 }
-                            }
+                            type: 'line', yMin: maximoAbsoluto, yMax: maximoAbsoluto,
+                            borderColor: 'rgba(239, 68, 68, 0.4)', borderWidth: 1.5, borderDash: [4, 4],
+                            label: { display: true, content: `Máx: $${maximoAbsoluto.toFixed(2)}`, position: 'start', backgroundColor: 'rgba(239, 68, 68, 0.7)', style: { fontSize: 10 } }
                         },
                         lineaMin: {
-                            type: 'line',
-                            yMin: minimoAbsoluto,
-                            yMax: minimoAbsoluto,
-                            borderColor: 'rgba(34, 197, 94, 0.4)', // Verde sutil
-                            borderWidth: 1.5,
-                            borderDash: [4, 4],
-                            label: {
-                                display: true,
-                                content: `Mín: $${minimoAbsoluto.toFixed(2)}`,
-                                position: 'start',
-                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                                style: { fontSize: 10 }
-                            }
+                            type: 'line', yMin: minimoAbsoluto, yMax: minimoAbsoluto,
+                            borderColor: 'rgba(34, 197, 94, 0.4)', borderWidth: 1.5, borderDash: [4, 4],
+                            label: { display: true, content: `Mín: $${minimoAbsoluto.toFixed(2)}`, position: 'start', backgroundColor: 'rgba(34, 197, 94, 0.7)', style: { fontSize: 10 } }
                         },
                         lineaPromedio: {
-                            type: 'line',
-                            yMin: promedioPrecio,
-                            yMax: promedioPrecio,
-                            borderColor: 'rgba(234, 179, 8, 0.3)', // Amarillo sutil
-                            borderWidth: 1.5,
-                            borderDash: [6, 6],
-                            label: {
-                                display: true,
-                                content: `Prom: $${promedioPrecio.toFixed(2)}`,
-                                position: 'end',
-                                backgroundColor: 'rgba(234, 179, 8, 0.6)',
-                                style: { fontSize: 10 }
-                            }
+                            type: 'line', yMin: promedioPrecio, yMax: promedioPrecio,
+                            borderColor: 'rgba(234, 179, 8, 0.3)', borderWidth: 1.5, borderDash: [6, 6],
+                            label: { display: true, content: `Prom: $${promedioPrecio.toFixed(2)}`, position: 'end', backgroundColor: 'rgba(234, 179, 8, 0.6)', style: { fontSize: 10 } }
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    grid: { color: '#374151', display: false }, // Sacamos verticales para limpiar el gráfico
+                    // Para que el plugin financiero de velas dibuje bien, necesita saber que el eje X maneja tiempos
+                    type: tipoVistaActual === 'velas' ? 'time' : 'category',
+                    time: { unit: 'day' },
+                    grid: { display: false },
                     ticks: { color: '#9ca3af' }
                 },
                 y: {
                     type: 'linear',
                     display: true,
-                    position: 'left', // Eje precio a la izquierda
+                    position: 'left',
                     grid: { color: '#374151' },
                     ticks: { 
-                        color: '#9ca3af',
-                        callback: function(value) { return '$' + value.toFixed(2); }
-                    }
+                        color: '#9ca3af', 
+                        callback: function(value) { return '$' + value.toFixed(2); } 
+                    },
+                    // Le damos un margen inteligente de holgura por encima y por debajo
+                    // Le restamos un 5% al mínimo absoluto para que no toque el piso
+                    min: Math.floor(minimoAbsoluto * 0.95), 
+                    // Le sumamos un 5% al máximo absoluto para que no toque el techo
+                    max: Math.ceil(maximoAbsoluto * 1.05)
                 },
-                yVolumen: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right', // Eje volumen a la derecha
-                    grid: { display: false }, // No duplicamos las líneas horizontales
-                    ticks: { color: '#6b7280', display: false }, // Escondemos los números del volumen para no saturar la vista
-                    // Multiplicamos por 4 el máximo para forzar a que las barras de volumen se queden abajo de todo
-                    max: Math.max(...volumenes) * 4 
-                }
             }
         }
     });
@@ -501,4 +497,41 @@ function eliminarActivo(ticker) {
     // 6. Escuchamos los clics de los botones del modal
     btnConfirmar.addEventListener("click", manejarConfirmacion);
     btnCancelar.addEventListener("click", cerrarModal);
+}
+
+//FUNCION: Cambia el color de los botones, actualiza la variable global y vuelve a renderizar el grafico con los mismos dias.
+function cambiarTipoVista(nuevaVista) {
+    // Si hay un grafico dibujado, lo destruimos.
+    // Esto obliga a Chart.js a resetear los ejes (X e Y) desde cero.
+    if(miGrafico) {
+        miGrafico.destroy();
+        miGrafico = null; // Limpio la variable, para asegurar un lienzo nuevo.
+    }
+
+    // Actualizamos la variable global.
+    tipoVistaActual = nuevaVista;
+
+    const btnLinea = document.getElementById("btn-vista-linea");
+    const btnVelas = document.getElementById("btn-vista-velas");
+
+    if (nuevaVista === 'linea') {
+        // Línea Activo (Azul con texto blanco)
+        btnLinea.className = "bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors";
+        // Velas Inactivo (Fondo oscuro, texto gris)
+        btnVelas.className = "text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-transparent";
+    } else {
+        // Velas Activo (Azul con texto blanco)
+        btnVelas.className = "bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors";
+        // Línea Inactivo (Fondo oscuro, texto gris)
+        btnLinea.className = "text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-transparent";
+    }
+
+    // Capturamos cuantos dias tiene seleccionados el slider actualmente.
+    const cantidadDias = parseInt(document.getElementById("range-dias").value);
+
+    // Cortamos el array con esa cantidad exacta de dias.
+    const datosRecortados = datosHistoricosCompletos.slice(-cantidadDias);
+
+    // Volvemos a renderizar el grafico con los datos actualizados desde cero.
+    actualizarGraficoProcesado(datosRecortados);
 }

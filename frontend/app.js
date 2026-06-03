@@ -3,6 +3,8 @@ const API_URL = "http://127.0.0.1:8000";
 
 let miGrafico = null;
 let datosHistoricosCompletos = []; // Para guardar los datos del historial originales.
+let tipoVistaActual = 'linea'; // valores posibles: 'linea' y 'velas'.
+
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
 document.addEventListener("DOMContentLoaded", () => {

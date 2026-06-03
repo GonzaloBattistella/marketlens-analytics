@@ -67,6 +67,22 @@
         </section>
 
         <section id="seccion-grafico" class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
+            <div class="flex items-center justify-between bg-slate-800 p-3 rounded-lg mb-4 border border-slate-700">
+                <div class="flex items-center gap-4 w-full">
+                    <label for="range-dias" class="text-sm font-medium text-slate-300 whitespace-nowrap">
+                        📅 Días a mostrar: <span id="valor-dias" class="text-blue-400 font-bold">30</span>
+                    </label>
+                    <input 
+                        type="range" 
+                        id="range-dias" 
+                        min="2" 
+                        max="30" 
+                        value="30" 
+                        class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        oninput="cambiarRangoDias(this.value)"
+                    >
+                </div>
+            </div>
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <h2 id="grafico-titulo" class="text-xl font-bold text-white">Historial de Precios</h2>

@@ -2,6 +2,7 @@
 const API_URL = "http://127.0.0.1:8000";
 
 let miGrafico = null;
+let datosHistoricosCompletos = []; // Para guardar los datos del historial originales.
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
 document.addEventListener("DOMContentLoaded", () => {
@@ -167,167 +168,20 @@ function verHistorial(ticker) {
         })
         .then(datosHistorial => {
             // ==========================================
-            // 🛠️ PASO 2: PROCESAMIENTO Y CÁLCULOS (Aquí va!)
+            //          PROCESAMIENTO Y CÁLCULOS
             // ==========================================
-            const etiquetasFechas = datosHistorial.map(dia => dia.fecha);
-            const preciosCierre = datosHistorial.map(dia => dia.precio_cierre);
+            datosHistoricosCompletos = datosHistorial; // Me guardo los datos de los 30 dias.
             
-            // 📊 Nuevos arrays extraídos de lo que nos manda Postgres
-            const volumenes = datosHistorial.map(dia => dia.volumen || 0);
-            const preciosApertura = datosHistorial.map(dia => dia.precio_apertura);
-            const preciosMaximos = datosHistorial.map(dia => dia.precio_maximo);
-            const preciosMinimos = datosHistorial.map(dia => dia.precio_minimo);
 
-            // 📐 Cálculos para las líneas horizontales de referencia
-            const maximoAbsoluto = Math.max(...preciosMaximos);
-            const minimoAbsoluto = Math.min(...preciosMinimos);
-            const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
-            const promedioPrecio = sumaCierres / preciosCierre.length;
-
-            // Obtener el contexto del canvas HTML
-            const ctx = document.getElementById('historicoChart').getContext('2d');
-
-            // REGLA DE CHART.JS: Si ya había un gráfico dibujado de otra acción, hay que destruirlo
-            if (miGrafico) {
-                miGrafico.destroy();
+            // Reseteamos el slider a 30, cada vez que se abre un activo nuevo.
+            const slider = document.getElementById("range-dias");
+            if (slider) {
+                slider.value = 30;
+                document.getElementById("valor-dias").innerText = 30;
             }
 
-            // ==========================================
-            // 🛠️ PASO 3: NUEVA CONFIGURACIÓN DEL CHART
-            // ==========================================
-            miGrafico = new Chart(ctx, {
-                data: {
-                    labels: etiquetasFechas, // Eje X: Fechas
-                    datasets: [
-                        {
-                            type: 'line', // Dataset 1: Línea del precio
-                            label: 'Precio de Cierre (USD)',
-                            data: preciosCierre,
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.05)', // Más sutil para que no tape las barras
-                            borderWidth: 3,
-                            tension: 0.2,
-                            pointBackgroundColor: '#3b82f6',
-                            pointRadius: 3,
-                            pointHoverRadius: 6,
-                            yAxisID: 'y' // <--- Atado al eje de la izquierda
-                        },
-                        {
-                            type: 'bar', // Dataset 2: Barras de volumen
-                            label: 'Volumen Diario',
-                            data: volumenes,
-                            backgroundColor: 'rgba(156, 163, 175, 0.15)', // Gris transparente
-                            hoverBackgroundColor: 'rgba(156, 163, 175, 0.3)',
-                            yAxisID: 'yVolumen', // <--- Atado al eje de la derecha
-                            barThickness: 'flex'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }, // Mantiene limpia la cabecera
-                        
-                        // 🎯 TOOLTIP AVANZADO (La radiografía del día)
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const index = context.dataIndex;
-                                    // Si pasa el mouse por la línea de precios (Index 0), despliega la data completa
-                                    if (context.datasetIndex === 0) {
-                                        return [
-                                            `🟢 Apertura: $${preciosApertura[index].toFixed(2)}`,
-                                            `🔵 Cierre: $${preciosCierre[index].toFixed(2)}`,
-                                            `🔺 Máximo: $${preciosMaximos[index].toFixed(2)}`,
-                                            `🔻 Mínimo: $${preciosMinimos[index].toFixed(2)}`,
-                                            `📊 Vol: ${volumenes[index].toLocaleString()}`
-                                        ];
-                                    }
-                                    // Si toca la barra de volumen, solo muestra el volumen
-                                    return `📊 Volumen: ${context.raw.toLocaleString()}`;
-                                }
-                            }
-                        },
-
-                        // LÍNEAS HORIZONTALES (Anotaciones de soporte/resistencia/promedio)
-                        annotation: {
-                            annotations: {
-                                lineaMax: {
-                                    type: 'line',
-                                    yMin: maximoAbsoluto,
-                                    yMax: maximoAbsoluto,
-                                    borderColor: 'rgba(239, 68, 68, 0.4)', // Rojo sutil
-                                    borderWidth: 1.5,
-                                    borderDash: [4, 4], // Punteado
-                                    label: {
-                                        display: true,
-                                        content: `Máx: $${maximoAbsoluto.toFixed(2)}`,
-                                        position: 'start',
-                                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                                        style: { fontSize: 10 }
-                                    }
-                                },
-                                lineaMin: {
-                                    type: 'line',
-                                    yMin: minimoAbsoluto,
-                                    yMax: minimoAbsoluto,
-                                    borderColor: 'rgba(34, 197, 94, 0.4)', // Verde sutil
-                                    borderWidth: 1.5,
-                                    borderDash: [4, 4],
-                                    label: {
-                                        display: true,
-                                        content: `Mín: $${minimoAbsoluto.toFixed(2)}`,
-                                        position: 'start',
-                                        backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                                        style: { fontSize: 10 }
-                                    }
-                                },
-                                lineaPromedio: {
-                                    type: 'line',
-                                    yMin: promedioPrecio,
-                                    yMax: promedioPrecio,
-                                    borderColor: 'rgba(234, 179, 8, 0.3)', // Amarillo sutil
-                                    borderWidth: 1.5,
-                                    borderDash: [6, 6],
-                                    label: {
-                                        display: true,
-                                        content: `Prom: $${promedioPrecio.toFixed(2)}`,
-                                        position: 'end',
-                                        backgroundColor: 'rgba(234, 179, 8, 0.6)',
-                                        style: { fontSize: 10 }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: '#374151', display: false }, // Sacamos verticales para limpiar el gráfico
-                            ticks: { color: '#9ca3af' }
-                        },
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left', // Eje precio a la izquierda
-                            grid: { color: '#374151' },
-                            ticks: { 
-                                color: '#9ca3af',
-                                callback: function(value) { return '$' + value.toFixed(2); }
-                            }
-                        },
-                        yVolumen: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right', // Eje volumen a la derecha
-                            grid: { display: false }, // No duplicamos las líneas horizontales
-                            ticks: { color: '#6b7280', display: false }, // Escondemos los números del volumen para no saturar la vista
-                            // Multiplicamos por 4 el máximo para forzar a que las barras de volumen se queden abajo de todo
-                            max: Math.max(...volumenes) * 4 
-                        }
-                    }
-                }
-            });
+            // Llamo a funcion interna que se encarga de procesar y dibujar.
+            actualizarGraficoProcesado(datosHistoricosCompletos);
 
             // Auto-scrollear suavemente hasta la sección del gráfico
             seccionGrafico.scrollIntoView({ behavior: 'smooth' });
@@ -336,6 +190,181 @@ function verHistorial(ticker) {
             console.error("Error técnico real:", error);
             alert(`⚠️ Para graficar ${ticker}, primero debés consultar el endpoint de actualización (/historial/${ticker}) en el navegador para poblar la base de datos por primera vez.`);
         });
+}
+
+// FUNCION Auxiliar: Actualiza el grafico, cuando se cambia el rango de dias en el grafico.
+function actualizarGraficoProcesado(datosARenderizar) {
+    // Todo tu código de procesamiento actual usando 'datosARenderizar' en vez de 'datosHistorial'
+    const etiquetasFechas = datosARenderizar.map(dia => dia.fecha);
+    const preciosCierre = datosARenderizar.map(dia => dia.precio_cierre);
+    const volumenes = datosARenderizar.map(dia => dia.volumen || 0);
+    const preciosApertura = datosARenderizar.map(dia => dia.precio_apertura);
+    const preciosMaximos = datosARenderizar.map(dia => dia.precio_maximo);
+    const preciosMinimos = datosARenderizar.map(dia => dia.precio_minimo);
+
+    const maximoAbsoluto = Math.max(...preciosMaximos);
+    const minimoAbsoluto = Math.min(...preciosMinimos);
+    const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
+    const promedioPrecio = sumaCierres / preciosCierre.length;
+
+    const ctx = document.getElementById('historicoChart').getContext('2d');
+
+    if (miGrafico) {
+        miGrafico.destroy();
+    }
+
+    // ==========================================
+    //      NUEVA CONFIGURACIÓN DEL CHART
+    // ==========================================
+    miGrafico = new Chart(ctx, {
+        data: {
+            labels: etiquetasFechas, // Eje X: Fechas
+            datasets: [
+                {
+                    type: 'line', // Dataset 1: Línea del precio
+                    label: 'Precio de Cierre (USD)',
+                    data: preciosCierre,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.05)', // Más sutil para que no tape las barras
+                    borderWidth: 3,
+                    tension: 0.2,
+                    pointBackgroundColor: '#3b82f6',
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    yAxisID: 'y' // <--- Atado al eje de la izquierda
+                },
+                {
+                    type: 'bar', // Dataset 2: Barras de volumen
+                    label: 'Volumen Diario',
+                    data: volumenes,
+                    backgroundColor: 'rgba(156, 163, 175, 0.15)', // Gris transparente
+                    hoverBackgroundColor: 'rgba(156, 163, 175, 0.3)',
+                    yAxisID: 'yVolumen', // <--- Atado al eje de la derecha
+                    barThickness: 'flex'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }, // Mantiene limpia la cabecera
+                
+                // 🎯 TOOLTIP AVANZADO (La radiografía del día)
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const index = context.dataIndex;
+                            // Si pasa el mouse por la línea de precios (Index 0), despliega la data completa
+                            if (context.datasetIndex === 0) {
+                                return [
+                                    `🟢 Apertura: $${preciosApertura[index].toFixed(2)}`,
+                                    `🔵 Cierre: $${preciosCierre[index].toFixed(2)}`,
+                                    `🔺 Máximo: $${preciosMaximos[index].toFixed(2)}`,
+                                    `🔻 Mínimo: $${preciosMinimos[index].toFixed(2)}`,
+                                    `📊 Vol: ${volumenes[index].toLocaleString()}`
+                                ];
+                            }
+                            // Si toca la barra de volumen, solo muestra el volumen
+                            return `📊 Volumen: ${context.raw.toLocaleString()}`;
+                        }
+                    }
+                },
+
+                // LÍNEAS HORIZONTALES (Anotaciones de soporte/resistencia/promedio)
+                annotation: {
+                    annotations: {
+                        lineaMax: {
+                            type: 'line',
+                            yMin: maximoAbsoluto,
+                            yMax: maximoAbsoluto,
+                            borderColor: 'rgba(239, 68, 68, 0.4)', // Rojo sutil
+                            borderWidth: 1.5,
+                            borderDash: [4, 4], // Punteado
+                            label: {
+                                display: true,
+                                content: `Máx: $${maximoAbsoluto.toFixed(2)}`,
+                                position: 'start',
+                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                                style: { fontSize: 10 }
+                            }
+                        },
+                        lineaMin: {
+                            type: 'line',
+                            yMin: minimoAbsoluto,
+                            yMax: minimoAbsoluto,
+                            borderColor: 'rgba(34, 197, 94, 0.4)', // Verde sutil
+                            borderWidth: 1.5,
+                            borderDash: [4, 4],
+                            label: {
+                                display: true,
+                                content: `Mín: $${minimoAbsoluto.toFixed(2)}`,
+                                position: 'start',
+                                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                                style: { fontSize: 10 }
+                            }
+                        },
+                        lineaPromedio: {
+                            type: 'line',
+                            yMin: promedioPrecio,
+                            yMax: promedioPrecio,
+                            borderColor: 'rgba(234, 179, 8, 0.3)', // Amarillo sutil
+                            borderWidth: 1.5,
+                            borderDash: [6, 6],
+                            label: {
+                                display: true,
+                                content: `Prom: $${promedioPrecio.toFixed(2)}`,
+                                position: 'end',
+                                backgroundColor: 'rgba(234, 179, 8, 0.6)',
+                                style: { fontSize: 10 }
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: '#374151', display: false }, // Sacamos verticales para limpiar el gráfico
+                    ticks: { color: '#9ca3af' }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left', // Eje precio a la izquierda
+                    grid: { color: '#374151' },
+                    ticks: { 
+                        color: '#9ca3af',
+                        callback: function(value) { return '$' + value.toFixed(2); }
+                    }
+                },
+                yVolumen: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right', // Eje volumen a la derecha
+                    grid: { display: false }, // No duplicamos las líneas horizontales
+                    ticks: { color: '#6b7280', display: false }, // Escondemos los números del volumen para no saturar la vista
+                    // Multiplicamos por 4 el máximo para forzar a que las barras de volumen se queden abajo de todo
+                    max: Math.max(...volumenes) * 4 
+                }
+            }
+        }
+    });
+}
+
+// FUNCION Auxiliar:Obtiene el numero de dias, cada vez que se modifica el valor del selector.
+function cambiarRangoDias(cantidadDias) {
+    // Convertimos a numero el valor del slider.
+    const dias = parseInt(cantidadDias);
+
+    //Actualizamos el texto en el HTML, para que el usuario vea que numero eligió.
+    document.getElementById("valor-dias").innerText = dias;
+
+    // Cortamos el array original, para quedarnos con los ultimos dias.
+    // El slice con numero negativo corta desde el final hacia atras. ?
+    const datosRecortados = datosHistoricosCompletos.slice(-dias);
+
+    // Volvemos a dibujar el grafico con el recorte. 
+    actualizarGraficoProcesado(datosRecortados);
 }
 
 // FUNCIÓN 4: Refrescar toda la DB (Indicadores + Historiales) con Cooldown de seguridad

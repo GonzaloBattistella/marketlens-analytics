@@ -1,3 +1,4 @@
+import requests
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 import yfinance as yf
@@ -287,3 +288,108 @@ def eliminar_indicador(ticker: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback() # Limpio la session por si algo falla.
         raise HTTPException(status_code=500, detail=f"Error al eliminar el activo: {str(e)}")
+
+
+# Llave privada, para conectarme al proveedor de noticias.
+NEWS_API_TOKEN = "df9f84d90eb746ba9d036abcab79c85a" # API-KEY NewsAPI.org
+
+@app.get('/api/noticias/{ticker}')
+def obtener_noticias_activo(ticker: str):
+    """
+    Endpoint que recibe un Ticker (ej: AAPL, BTC), sale a internet, 
+    busca noticias financieras relevantes y te las devuelve limpias en un JSON.
+    """
+
+    ticker_upper = ticker.upper()
+
+    # AUTOMATIZACIÓN INTELIGENTE:
+    # Separamos si es una de tus criptos conocidas o una acción tradicional
+    if ticker_upper in ["BTC", "ETH", "USDT"]:
+        mapeo_cripto = {"BTC": "Bitcoin", "ETH": "Ethereum", "USDT": "Tether"}
+        termino_busqueda = f"{mapeo_cripto[ticker_upper]} OR {ticker_upper}"
+    else:
+        # Para cualquier acción (AAPL, GGAL, TSLA, MSFT, etc.) armamos una 
+        # compuerta lógica. NewsAPI buscará el ticker pero filtrará para que 
+        # sí o sí la noticia hable de finanzas, bolsa o mercado.
+        termino_busqueda = f"{ticker_upper} AND (bolsa OR acciones OR stock OR finanzas)"
+
+    # Preparamos la URL externa y los parametros de filtrado para TheNewsAPI.
+    url = "https://newsapi.org/v2/everything"
+
+    dominos_bloqueados = "engadget.com,buzzfeed.com"
+
+    parametros = {
+        "q": termino_busqueda,
+        "language": "en",       # Traemos contenido tanto en español como en inglés
+        "sort_by": "publishedAt",
+        "pageSize": 8,
+        "excludeDomains": dominos_bloqueados,
+        "apiKey": NEWS_API_TOKEN
+    }
+
+    try: 
+        respuesta = requests.get(url, params=parametros, timeout=5)
+        if respuesta.status_code != 200:
+            raise HTTPException(status_code=500, detail="Error en el proveedor de noticias.")
+            
+        data = respuesta.json()
+        articulos = data.get("articles", [])
+        
+        noticias_limpias = []
+        for art in articulos:
+            titulo = art.get("title")
+            url_noticia = art.get("url", "").lower() # Capturamos la URL en minusculas.
+
+            # Si el tiutlo está vacio o es una nota borrada.
+            if not titulo or "[Removed]" in titulo or "consent" in url_noticia:
+                continue
+
+            noticias_limpias.append({
+                "title": titulo,
+                "description": art.get("description") or "Check the financial updates and market movements for this asset in the full report.",
+                "url": art.get("url"),
+                "image_url": art.get("urlToImage"),
+                "published_at": art.get("publishedAt"),
+                "source": art.get("source", {}).get("name") or "Finance News"
+            })
+
+
+            # 🚨 LA MEJORA CLAVE: Evaluamos si nos quedaron de verdad noticias útiles en la lista
+        # Si la lista está vacía (como le pasa a GGAL), forzamos el Plan B de Wall Street
+        if len(noticias_limpias) == 0:
+            print(f"⚠️ Cero noticias limpias para {ticker_upper}. Ejecutando Plan B general de mercados...")
+            
+            parametros_fallback = {
+                "q": "stock market",  # Un término masivo que jamás viene vacío
+                "language": "en",
+                "sortBy": "publishedAt",
+                "pageSize": 4,
+                "apiKey": NEWS_API_TOKEN
+            }
+            
+            respuesta_fallback = requests.get(url, params=parametros_fallback, timeout=5)
+            data_fallback = respuesta_fallback.json()
+            
+            for art in data_fallback.get("articles", []):
+                titulo = art.get("title")
+                url_noticia = art.get("url", "").lower()
+                
+                if not titulo or "[Removed]" in titulo or "consent" in url_noticia:
+                    continue
+                    
+                noticias_limpias.append({
+                    "title": titulo,
+                    "description": art.get("description") or "Check the latest market movements and global updates in the full report.",
+                    "url": art.get("url"),
+                    "image_url": art.get("urlToImage"),
+                    "published_at": art.get("publishedAt"),
+                    "source": art.get("source", {}).get("name") or "Wall Street"
+                })
+
+        # Retornamos las primeras 4.
+        return noticias_limpias[:4]
+    
+    except requests.exceptions.RequestException as e:
+        # Por si el servidor de noticias está caido o no tenemos internet.
+        print(f'Error de conexión: {e}')
+        raise HTTPException(status_code=500, detail="El servicio de noticias, no se encuentra disponible temporalmente.")

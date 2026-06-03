@@ -154,11 +154,17 @@ buscadorForm.addEventListener("submit", (e) => {
 // FUNCIÓN 3: Buscar el historial en la DB y dibujar el gráfico interactivo
 function verHistorial(ticker) {
     const seccionGrafico = document.getElementById("seccion-grafico");
-    const graficoTitulo = document.getElementById("grafico-titulo");
+    const graficoTitulo = document.getElementById("grafico-titulo") || document.getElementById("titulo-grafico");
     
     // Mostramos la sección del gráfico (le sacamos la clase 'hidden' de Tailwind)
     seccionGrafico.classList.remove("hidden");
-    graficoTitulo.textContent = `📈 Historial de Precios: ${ticker}`;
+    
+    if (graficoTitulo) {
+        graficoTitulo.textContent = `📈 Historial de Precios: ${ticker}`;
+    }
+
+    // Disparamos las noticias en paralelo.
+    cargarNoticias(ticker); 
 
     // Le pegamos a tu endpoint de lectura rápida de la base de datos
     fetch(`${API_URL}/db/historial/${ticker}`)
@@ -172,7 +178,7 @@ function verHistorial(ticker) {
             // ==========================================
             //          PROCESAMIENTO Y CÁLCULOS
             // ==========================================
-            datosHistoricosCompletos = datosHistorial; // Me guardo los datos de los 30 dias.
+            datosHistorialCompletos = datosHistorial; // Me guardo los datos de los 30 dias.
             
 
             // Reseteamos el slider a 30, cada vez que se abre un activo nuevo.
@@ -183,7 +189,7 @@ function verHistorial(ticker) {
             }
 
             // Llamo a funcion interna que se encarga de procesar y dibujar.
-            actualizarGraficoProcesado(datosHistoricosCompletos);
+            actualizarGraficoProcesado(datosHistorialCompletos);
 
             // Auto-scrollear suavemente hasta la sección del gráfico
             seccionGrafico.scrollIntoView({ behavior: 'smooth' });
@@ -357,9 +363,14 @@ function cambiarRangoDias(cantidadDias) {
     //Actualizamos el texto en el HTML, para que el usuario vea que numero eligió.
     document.getElementById("valor-dias").innerText = dias;
 
+    if(!datosHistorialCompletos || datosHistorialCompletos.length === 0) {
+        console.warn("No hay datos historicos cargados para recortar.");
+        return;
+    }
+
     // Cortamos el array original, para quedarnos con los ultimos dias.
     // El slice con numero negativo corta desde el final hacia atras. ?
-    const datosRecortados = datosHistoricosCompletos.slice(-dias);
+    const datosRecortados = datosHistorialCompletos.slice(-dias);
 
     // Volvemos a dibujar el grafico con el recorte. 
     actualizarGraficoProcesado(datosRecortados);
@@ -527,11 +538,117 @@ function cambiarTipoVista(nuevaVista) {
     }
 
     // Capturamos cuantos dias tiene seleccionados el slider actualmente.
-    const cantidadDias = parseInt(document.getElementById("range-dias").value);
+    const slider = document.getElementById("range-dias");
+    const cantidadDias = slider ? parseInt(slider.value) : 30;
 
     // Cortamos el array con esa cantidad exacta de dias.
-    const datosRecortados = datosHistoricosCompletos.slice(-cantidadDias);
+    const datosRecortados = datosHistorialCompletos.slice(-cantidadDias);
 
     // Volvemos a renderizar el grafico con los datos actualizados desde cero.
     actualizarGraficoProcesado(datosRecortados);
+}
+
+
+// FUNCION 6: Funcion que va a cargar las noticias, es decir, va a conectar el backend, con el frontend, para que se puedan visualizar las noticias.
+async function cargarNoticias(ticker) {
+    const contenedor = document.getElementById("contenedor-noticias");
+
+    // Ponemos el estado de carga por si cambia el activo.
+    contenedor. innerHTML = `
+        <div class="text-xs text-center py-12 text-slate-500">
+            <span class="inline-block animate-spin mr-1">⏳</span> Buscando primicias del mercado...
+        </div>
+    `;
+
+    try {
+        // Le pegamos a nuestro endpoint del backend.
+        const respuesta = await fetch(`http://127.0.0.1:8000/api/noticias/${ticker}`);
+
+        if (!respuesta.ok) {
+            throw new Error("No se pudieron recuperar las noticias.");
+        }
+
+        const noticias = await respuesta.json();
+
+        // Si la API no devolvio ninguna noticia, avisamos al usuario.
+        if (!noticias || noticias.length === 0) {
+            contenedor.innerHTML = `
+                <div class="text-xs text-center py-12 text-slate-500">
+                    📭 No se encontraron noticias recientes para este activo.
+                </div>
+            `;
+            return; // No hay noticias, termina la funcion.
+        }
+
+        // Limpiamos el contenedor antes de inyectar las tarjetas.
+        contenedor.innerHTML = "";
+
+        // Recorremos las 4 noticias y armamos el diseño dinámico.
+        noticias.forEach(articulo => {
+            // Aseguramos que haya un título, si no viene ponemos un genérico
+            const titulo = articulo.title || "Novedades en el mercado financiero";
+            
+            // Si la descripción no existe o está vacía, ponemos un texto seguro
+            const descripcion = articulo.description && articulo.description.trim() !== "" 
+                ? articulo.description 
+                : "Hacé clic para conocer los detalles completos de esta novedad del mercado.";
+
+            // Validamos la fuente / medio de comunicación
+            const fuente = articulo.source || "Info Mercado";
+
+            // Validamos la miniatura, si no hay ponemos la de Unsplash
+            const imagenUrl = articulo.image_url || "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=150&auto=format&fit=crop&q=60";
+            
+            // Formateamos la fecha de publicación de manera segura
+            let fechaHumana = "Reciente";
+            if (articulo.published_at) {
+                try {
+                    fechaHumana = new Date(articulo.published_at).toLocaleDateString('es-AR', {
+                        day: 'numeric',
+                        month: 'short'
+                    });
+                } catch (e) {
+                    console.warn("Error al formatear fecha de una noticia:", e);
+                }
+            }
+
+            // 5. Construimos la tarjeta HTML con variables recontra validadas
+            const tarjetaHTML = `
+                <a href="${articulo.url || '#'}" target="_blank" rel="noopener noreferrer" 
+                   class="block bg-slate-900/60 hover:bg-slate-700/50 p-3 rounded-lg border border-slate-700/60 transition-all hover:-translate-y-0.5 group">
+                    <div class="flex gap-3">
+                        <img src="${imagenUrl}" 
+                             class="w-16 h-16 object-cover rounded-lg bg-slate-800 shrink-0 border border-slate-700/50 shadow-inner" 
+                             alt="News"
+                             onerror="this.src='https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=150&auto=format&fit=crop&q=60'"
+                        >
+                        <div class="flex flex-col justify-between min-w-0 w-full gap-1">
+                            <h4 class="text-[11px] font-bold text-slate-100 group-hover:text-blue-400 line-clamp-2 leading-snug transition-colors" title="${titulo}">
+                                ${titulo}
+                            </h4>
+                            
+                            <p class="text-[10px] text-slate-400 line-clamp-1 leading-normal font-normal">
+                                ${descripcion}
+                            </p>
+
+                            <div class="flex items-center justify-between text-[9px] text-slate-500 mt-0.5">
+                                <span class="font-bold text-slate-400 uppercase tracking-wider max-w-[120px] truncate">${fuente}</span>
+                                <span class="bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 font-medium border border-slate-700/30">📅 ${fechaHumana}</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            `;
+
+            // Inyectamos la tarjeta adentro del panel
+            contenedor.insertAdjacentHTML("beforeend", tarjetaHTML);
+        });
+    } catch(error) {
+        console.log("Error al cargar las noticias: ", error);
+        contenedor.innerHTML = `
+            <div class="text-xs text-center py-12 text-red-400">
+                ⚠️ Error al conectar con el servidor de noticias.
+            </div>
+        `;
+    }
 }

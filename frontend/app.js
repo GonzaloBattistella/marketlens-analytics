@@ -9,6 +9,16 @@ let tipoVistaActual = 'linea'; // valores posibles: 'linea' y 'velas'.
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
 document.addEventListener("DOMContentLoaded", () => {
     cargarIndicadores();
+
+    const btnCerrar = document.getElementById('btn-cerrar-panel');
+    const panelGeneral = document.getElementById('seccion-grafico');
+
+    if (btnCerrar && panelGeneral) {
+        btnCerrar.addEventListener('click', () => {
+            panelGeneral.style.display = 'none'; // Oculta todo el bloque completo (Grafico + Noticias).
+            console.log("❌ Panel lateral cerrado correctamente.");
+        })
+    }
 });
 
 // FUNCIÓN 1: Ir a buscar los indicadores a la DB y dibujarlos en la tabla
@@ -273,7 +283,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
         data: {
             labels: etiquetasFechas, 
             datasets: [
-                datasetPrincipal, // 👈 Inyectamos dinámicamente la Línea o las Velas aquí
+                datasetPrincipal, // Inyectamos dinámicamente la Línea o las Velas aquí
                 {
                     type: 'bar',
                     label: 'Volumen Diario',
@@ -384,7 +394,7 @@ if (btnRefrescar) {
         // 1. Bloqueamos el botón inmediatamente para evitar clics repetidos
         btnRefrescar.disabled = true;
         btnRefrescar.classList.add("opacity-50", "cursor-not-allowed");
-        btnRefrescar.innerHTML = "🔄 Actualizando todo...";
+        btnRefrescar.innerHTML = "🔄 Actualizando datos...";
 
         // 2. Le pegamos al backend inteligente que creamos recién
         fetch(`${API_URL}/db/refrescar`, { method: "POST" })
@@ -551,7 +561,13 @@ function cambiarTipoVista(nuevaVista) {
 
 // FUNCION 6: Funcion que va a cargar las noticias, es decir, va a conectar el backend, con el frontend, para que se puedan visualizar las noticias.
 async function cargarNoticias(ticker) {
+    const panelGeneral = document.getElementById("seccion-grafico");
     const contenedor = document.getElementById("contenedor-noticias");
+
+    // Cada vez que el usuario elige un activo, nos aseguramos de volver a mostrar el panel por si estaba oculto (en display: none).
+    if (panelGeneral) {
+        panelGeneral.style.display = 'block';
+    }
 
     // Ponemos el estado de carga por si cambia el activo.
     contenedor. innerHTML = `

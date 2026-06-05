@@ -69,8 +69,8 @@
             </div>
         </section>
 
-        <section id="seccion-grafico" class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
-    
+        <section id="seccion-grafico" class="relative bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
+
             <div class="flex flex-col md:flex-row items-center justify-between bg-slate-800 p-3 rounded-lg mb-4 border border-slate-700 gap-4">
                 <div class="flex items-center gap-4 w-full md:w-2/3">
                     <label for="range-dias" class="text-sm font-medium text-slate-300 whitespace-nowrap">
@@ -89,6 +89,11 @@
                     </button>
                     <button id="btn-vista-velas" onclick="cambiarTipoVista('velas')" class="text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors">
                         🕯️ Velas
+                    </button>
+
+                    <button id="btn-cerrar-panel" 
+                            class="ml-6 bg-slate-800 hover:bg-red-950/40 text-slate-300 hover:text-red-400 border border-slate-700 hover:border-red-900/60 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+                        <span>❌</span> Cerrar
                     </button>
                 </div>
             </div>
@@ -116,7 +121,7 @@
                     </div>
                 </div>
             </div>
-            
+
         </section>
 
     </main>

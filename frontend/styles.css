@@ -1,0 +1,28 @@
+/* ==========================================================================
+                PERSONALIZACIÓN DEL SCROLLBAR GLOBAL
+   ========================================================================== */
+
+/* 1. Definimos el ancho de la barra (Vertical y Horizontal) */
+::-webkit-scrollbar {
+    width: 8px;  /* Más fina y sutil que la de fábrica */
+    height: 8px; /* Para el scroll horizontal si hiciera falta */
+}
+
+/* 2. El "Track" o canal (el fondo por donde corre la barra) */
+::-webkit-scrollbar-track {
+    background: #0f172a; /* Equivalente al bg-slate-900 de Tailwind */
+    border-radius: 4px;
+}
+
+/* 3. El "Thumb" o manija (lo que el usuario arrastra) */
+::-webkit-scrollbar-thumb {
+    background: #334155; /* Equivalente al bg-slate-700 de Tailwind */
+    border-radius: 4px;
+    border: 1px solid #1e293b; /* Le da un aire interno para que no pegue al borde (slate-800) */
+    transition: background 0.2s ease;
+}
+
+/* 4. Efecto Hover: Cuando el usuario pasa el mouse por arriba de la barra */
+::-webkit-scrollbar-thumb:hover {
+    background: #475569; /* Se aclara un toque al pasar el mouse (slate-600) */
+}

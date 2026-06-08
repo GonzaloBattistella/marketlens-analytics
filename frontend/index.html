@@ -23,6 +23,7 @@
 
     <main class="container mx-auto p-6 space-y-8">
         
+        // Contenedor del cuadro de indicadores.
         <section class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
             <h2 class="text-lg font-bold mb-3 text-gray-300">Buscar Activo</h2>
             <form id="buscador-form" class="flex gap-4 max-w-md">
@@ -69,7 +70,9 @@
                 </table>
             </div>
         </section>
+        
 
+        //contenedor del grafico.
         <section id="seccion-grafico" class="relative bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
 
             <div class="flex flex-col md:flex-row items-center justify-between bg-slate-800 p-3 rounded-lg mb-4 border border-slate-700 gap-4">
@@ -124,6 +127,42 @@
             </div>
 
         </section>
+
+        // Contenedor del reporte generado con IA.
+        <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl p-6 shadow-xl mt-6">
+    
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📊</span>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-100 tracking-wide">Reporte Estructural del Activo</h3>
+                        <p class="text-xs text-slate-400">Auditoría técnica y fundamental integrada • <span class="text-indigo-400 font-medium">Gemini 2.5 Engine</span></p>
+                    </div>
+                </div>
+                <button id="btn-generar-ia" 
+                        class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-sm rounded-lg shadow-lg shadow-indigo-500/20 transition-all duration-200 flex items-center gap-2 transform active:scale-95">
+                    <span>✨</span> Generar Reporte
+                </button>
+            </div>
+
+            <hr class="border-slate-800 my-4">
+
+            <div id="contenedor-reporte-ia" class="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed min-h-[100px] flex flex-col justify-center">
+                
+                <div id="ia-estado-inicial" class="text-center py-6 text-slate-500">
+                    <p>Hacé click en el botón superior para confeccionar un análisis técnico y fundamental de este activo.</p>
+                </div>
+
+                <div id="ia-estado-carga" class="hidden flex-col items-center justify-center gap-3 py-8 text-center text-indigo-400">
+                    <div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-xs font-medium text-slate-400 animate-pulse">Procesando historial de 200 días y redactando reporte...</p>
+                </div>
+
+                <div id="ia-texto-reporte" class="hidden whitespace-pre-line space-y-4">
+                    </div>
+
+            </div>
+        </div>
 
     </main>
 

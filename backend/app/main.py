@@ -7,9 +7,16 @@ from app.database import get_db
 import app.models as models
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
+import os
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
 # Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
 models.Base.metadata.create_all(bind=engine)
+
+# Leo el archivo .envy cargo las variables en la memoria.
+load_dotenv()
 
 app = FastAPI(title="MarketLens API", version="0.1.0")
 
@@ -21,6 +28,9 @@ app.add_middleware(
     allow_methods=["*"], # Permite todos los métodos (GET, POST, etc.)
     allow_headers=["*"], # Permite todos los encabezados
 )
+
+# Inicializamos el cliente de Gemini. Automaticamente va a buscar la variable 'GEMINI_API_KEY' en el entorno.
+client = genai.Client()
 
 @app.get("/")
 def read_root():
@@ -354,8 +364,8 @@ def obtener_noticias_activo(ticker: str):
             })
 
 
-            # 🚨 LA MEJORA CLAVE: Evaluamos si nos quedaron de verdad noticias útiles en la lista
-        # Si la lista está vacía (como le pasa a GGAL), forzamos el Plan B de Wall Street
+        # Evaluamos si nos quedaron de verdad noticias útiles en la lista
+        # Si la lista está vacía, forzamos el Plan B de Wall Street
         if len(noticias_limpias) == 0:
             print(f"⚠️ Cero noticias limpias para {ticker_upper}. Ejecutando Plan B general de mercados...")
             
@@ -393,3 +403,106 @@ def obtener_noticias_activo(ticker: str):
         # Por si el servidor de noticias está caido o no tenemos internet.
         print(f'Error de conexión: {e}')
         raise HTTPException(status_code=500, detail="El servicio de noticias, no se encuentra disponible temporalmente.")
+    
+
+# Generar reporte de un activo con Gemini 2.5 Pro.
+@app.get("/api/analisis/{ticker}")
+async def generar_analisis_ia(ticker: str, db: Session = Depends(get_db)):
+    """
+    Endpoint que contacta a Gemini 1.5 Pro para generar un reporte financiero
+    profesional, estructurado y realista de un activo.
+    """
+    try: 
+        ticker_upper = ticker.upper() # Convierto el ticker a mayusculas por seguridad.
+
+        # El backend busca los precios en la base de datos o API.
+        historial_completo = leer_historial_db(ticker_upper, db)
+
+
+        # soluciono el problema, si no hay datos en la base de datos para el historial.
+        if not historial_completo:
+            raise HTTPException(status_code=500, detail=f"No se encontraron datos historicos.")
+
+        # Detalle de los ultimos 30 diás para las funciones del gráfico.
+        historial_reciente = historial_completo[-30:]
+        
+        datos_corto_plazo = [
+            {
+                "fecha": str(p.fecha),
+                "apertura": p.precio_apertura,
+                "cierre": p.precio_cierre,
+                "maximo": p.precio_maximo,
+                "minimo": p.precio_minimo
+            }
+            for p in historial_reciente
+        ]
+
+        # Procesamos la tendencia estructural de los últimos 200 dias. 
+        historial_largo = historial_completo[-200:]
+        precios_cierre_200 = [p.precio_cierre for p in historial_largo] # Lista con los precios de cierre, de los ultimos 200 días.
+
+        precio_actual = precios_cierre_200[-1]
+        maximo_200 = max(precios_cierre_200)
+        minimo_200 = min(precios_cierre_200)
+        media_movil_200 = sum(precios_cierre_200) / len(precios_cierre_200)
+        tendencia_200 = "ALCISTA" if precio_actual > media_movil_200 else "BAJISTA"
+
+
+        # Busco las noticias en la DB. Reutilizo funcion del backend que obtiene las noticias de una API.
+        noticias_data = obtener_noticias_activo(ticker_upper)
+
+        # Le doy el rol y la estructura exacta que queremos al reporte.
+        prompt_sistema = (
+            "Actuá como un Analista Financiero Senior y Gestor de Portafolios experto. "
+            "Tu tarea es confeccionar un reporte de análisis técnico y fundamental de mercado "
+            "reducido, sobrio, profesional y basado en expectativas realistas.\n\n"
+            "Estructurá tu respuesta estrictamente con los siguientes títulos en formato Markdown:\n"
+            f"### 📊 Análisis de Situación Actual: {ticker_upper}\n"
+            "(Breve resumen de qué es el activo y su contexto de mercado actual).\n\n"
+            "### ⏱️ Perspectiva a Corto Plazo (Días/Semanas)\n"
+            "(Factores técnicos, volatilidad esperada y catalizadores inmediatos).\n\n"
+            "### 🏛️ Perspectiva a Mediano/Largo Plazo (Meses/Años)\n"
+            "(Fundamentos sólidos, contexto macroeconómico y potencial de crecimiento o riesgos estructurales).\n\n"
+            "### ⚠️ Riesgos Clave a Monitorear\n"
+            "(Al menos 2 o 3 riesgos específicos que podrían invalidar las perspectivas positivas).\n\n"
+            "Usa un tono analítico, formal, sin rodeos y adaptado al público inversor. No uses introducciones genéricas ni saludos."
+        )
+
+        # Paquete de Datos para la IA
+        prompt_con_datos = (
+            f"Generá el reporte financiero para el activo: {ticker_upper}.\n\n"
+            f"--- DATOS DE CORTO PLAZO (Últimos 30 días) ---\n"
+            f"{datos_corto_plazo}\n\n"
+            f"--- MÉTRICAS ESTRUCTURALES DE LARGO PLAZO (Últimos {len(precios_cierre_200)} días) ---\n"
+            f"- Precio de Cierre Actual: {precio_actual}\n"
+            f"- Máximo del período: {maximo_200}\n"
+            f"- Mínimo del período: {minimo_200}\n"
+            f"- Media Móvil Simple (SMA 200): {round(media_movil_200, 2)}\n"
+            f"- Tendencia de Fondo: {tendencia_200}\n\n"
+            f"--- NOTICIAS RECIENTES DEL ACTIVO ---\n"
+            f"{noticias_data}"
+        )
+
+        # LLamada a Gemini 2.5 Flash.
+        respuesta = client.models.generate_content(
+            model = 'gemini-2.5-flash',
+            contents=prompt_con_datos,
+            config=types.GenerateContentConfig(
+                system_instruction=prompt_sistema,
+                temperature=0.3, # Temperatura baja, para que sea más analitico, preciso y no invente cosas.
+            )
+        )
+
+        # Validamos que la IA, haya retornado una respuesta.
+        if not respuesta.text:
+            raise HTTPException(status_code=500, detail="La IA no pudo procesar el reporte.")
+        
+        # Devolvemos el reporte al frontend estructurado en JSON.
+        return {
+            "ticker": ticker_upper,
+            "reporte": respuesta.text
+        }
+
+    except Exception as e:
+        print(f"❌ Error en el endpoint de IA: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno al generar el análisis: {str(e)}")

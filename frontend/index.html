@@ -23,7 +23,6 @@
 
     <main class="container mx-auto p-6 space-y-8">
         
-        // Contenedor del cuadro de indicadores.
         <section class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
             <h2 class="text-lg font-bold mb-3 text-gray-300">Buscar Activo</h2>
             <form id="buscador-form" class="flex gap-4 max-w-md">
@@ -72,7 +71,6 @@
         </section>
         
 
-        //contenedor del grafico.
         <section id="seccion-grafico" class="relative bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
 
             <div class="flex flex-col md:flex-row items-center justify-between bg-slate-800 p-3 rounded-lg mb-4 border border-slate-700 gap-4">
@@ -128,7 +126,7 @@
 
         </section>
 
-        // Contenedor del reporte generado con IA.
+
         <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-xl p-6 shadow-xl mt-6">
     
             <div class="flex items-center justify-between mb-4">
@@ -153,9 +151,19 @@
                     <p>Hacé click en el botón superior para confeccionar un análisis técnico y fundamental de este activo.</p>
                 </div>
 
-                <div id="ia-estado-carga" class="hidden flex-col items-center justify-center gap-3 py-8 text-center text-indigo-400">
-                    <div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p class="text-xs font-medium text-slate-400 animate-pulse">Procesando historial de 200 días y redactando reporte...</p>
+                <div id="ia-estado-carga" class="hidden flex flex-col items-center justify-center gap-6 py-16 text-center text-indigo-400 bg-slate-900/60 backdrop-blur-md rounded-lg border border-slate-800/50">
+            
+                    <div class="relative w-12 h-12">
+                        <div class="absolute inset-0 w-full h-full border-4 border-slate-800 rounded-full"></div>
+                        <div class="absolute inset-0 w-full h-full border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    
+                    <div class="flex flex-col items-center gap-2 max-w-sm">
+                        <p class="text-sm font-semibold text-slate-100 tracking-wide">Generando Reporte Estructural...</p>
+                        <p class="text-xs text-slate-400 animate-pulse px-4">
+                            Nuestro motor está procesando el historial de 200 días y redactando el análisis técnico y fundamental.
+                        </p>
+                    </div>
                 </div>
 
                 <div id="ia-texto-reporte" class="hidden whitespace-pre-line space-y-4">

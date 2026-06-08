@@ -1,6 +1,7 @@
 // URL base de tu backend de FastAPI
 const API_URL = "http://127.0.0.1:8000";
 
+let tickerGLobal = "";
 let miGrafico = null;
 let datosHistoricosCompletos = []; // Para guardar los datos del historial originales.
 let tipoVistaActual = 'linea'; // valores posibles: 'linea' y 'velas'.
@@ -163,6 +164,9 @@ buscadorForm.addEventListener("submit", (e) => {
 
 // FUNCIÓN 3: Buscar el historial en la DB y dibujar el gráfico interactivo
 function verHistorial(ticker) {
+    // Actualizo el valor del ticker de la variable global, para que se mantenga actualizada.
+    tickerGLobal = ticker.toUpperCase();
+
     const seccionGrafico = document.getElementById("seccion-grafico");
     const graficoTitulo = document.getElementById("grafico-titulo") || document.getElementById("titulo-grafico");
     
@@ -668,3 +672,83 @@ async function cargarNoticias(ticker) {
         `;
     }
 }
+
+
+// ==========================================================================
+//          INTEGRACIÓN CON EL REPORTE ESTRUCTURAL DE IA (GEMINI 2.5)
+// ==========================================================================
+
+// Función auxiliar para renderizar Markdown basico que devuelve la IA.
+function mapearMarkdownAHTML(textoMarkdown){
+    let html = textoMarkdown
+        // Convertir títulos ### Ejemplo a <h3>
+        .replace(/^### (.*$)/gim, '<h4 class="text-md font-bold text-indigo-400 mt-4 mb-2 tracking-wide border-b border-slate-800/50 pb-1">$1</h4>')
+        // Convertir negritas **texto** a <strong>
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
+        // Convertir viñetas de guiones o asteriscos a elementos de lista con estilo Tailwind
+        .replace(/^\s*[\-\*]\s+(.*$)/gim, '<li class="list-none pl-4 relative before:content-[\'•\'] before:text-indigo-500 before:absolute before:left-0">$1</li>');
+
+    return html;
+}
+
+
+// Event Listener para el boton de generar informe.
+document.getElementById('btn-generar-ia').addEventListener('click', async () => {
+    // Capturo los elementos del DOM. (significa Document Object Model, o Modelo de Objetos del Documento).
+    const btnGenerar = document.getElementById('btn-generar-ia');
+    const estadoInicial = document.getElementById('ia-estado-inicial');
+    const estadoCarga = document.getElementById('ia-estado-carga');
+    const textoReporte = document.getElementById('ia-texto-reporte');
+
+    // Obtengo el ticker Activo.
+    const ticker = tickerGLobal;
+
+    // Transicion de estados visuales: Muestro el spinner de carga.
+    estadoInicial.classList.add('hidden');
+    textoReporte.classList.add('hidden');
+    estadoCarga.classList.remove('hidden');
+
+    // deshabilito el boton temporalmente para evitar que el usuario no haga spam de clicks.
+    btnGenerar.disabled = true;
+    btnGenerar.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    try{
+        // Peticion fetch al Backend de FastAPI.
+        const url = `http://127.0.0.1:8000/api/analisis/${ticker}`;
+        const response = await fetch(url);
+
+        if (!response.ok){
+            throw new Error('Error en el servidor: ${response.statusText}');
+        }
+
+        const data = await response.json();
+
+        // Renderizo el Markdown que nos mandó la IA a HTML limpio.
+        const reporteHtmlHTML = mapearMarkdownAHTML(data.reporte);
+
+        // Inyecto el resultado y muestro el contenedor de éxito.
+        textoReporte.innerHTML = reporteHtmlHTML;
+
+        estadoCarga.classList.add('hidden');
+        textoReporte.classList.remove('hidden');
+
+
+    }
+    catch (error){
+        console.error("❌ Error al procesar el reporte de IA:", error);
+
+        // Estado de error en la Interfaz.
+        textoReporte.innerHTML = `
+            <div class="text-red-400 text-xs p-3 bg-red-950/40 border border-red-900/50 rounded-lg text-center">
+                Hubo un inconveniente al generar el reporte estructural. Por favor, verificá la conexión con el servidor o reintentá en unos minutos.
+            </div>
+        `;
+        estadoCarga.classList.add('hidden');
+        textoReporte.classList.remove('hidden');
+    }
+    finally{
+        // Rehabilito el boton al terminar (sea Exito o Error). 
+        btnGenerar.disabled = false;
+        btnGenerar.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+})

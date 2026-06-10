@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 # 1. Tabla de Indicadores en Tiempo Real
@@ -34,3 +35,29 @@ class PriceHistory(Base):
     __table_args__ = (
         index_for_ticker_date := None, # Truco visual, se define abajo nativamente si es necesario, pero SQLAlchemy lo maneja en los argumentos
     )
+
+
+# 3. Tabla de Usuario.
+class User(Base):
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False) #Contraseña encriptada.
+
+    # Relacion: Un usuario puede tener muchos favoritos.
+    favoritos = relationship("UserFavorite", back_populates="usuario", cascade="all, delete-orphan") # Para que en casa de borrar un usuario, los favoritos tambien se borren, automaticamente.
+
+
+# 4. Tabla de Favoritos.
+class UserFavorite(Base):
+    __tablename__ = "usuarios_favoritos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    ticker = Column(String, index=True, nullable=False)
+
+    # Relacion inversa, para poder hacer consultas faciles, desde python.
+    usuario = relationship("User", back_populates="favoritos")
+

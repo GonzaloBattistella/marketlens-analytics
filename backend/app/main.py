@@ -11,6 +11,7 @@ import os
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from app.routers import auth
 
 # Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
 models.Base.metadata.create_all(bind=engine)
@@ -19,6 +20,8 @@ models.Base.metadata.create_all(bind=engine)
 load_dotenv()
 
 app = FastAPI(title="MarketLens API", version="0.1.0")
+
+app.include_router(auth.router)
 
 # Configuramos los permisos de CORS para que el frontend pueda consultar la API
 app.add_middleware(

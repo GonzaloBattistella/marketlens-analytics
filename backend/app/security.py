@@ -3,6 +3,11 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import os
 from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app import models
 
 
 # Cargamos el archivo .env para que Python pueda leerlo.
@@ -51,4 +56,37 @@ def create_access_token(data: dict) -> str:
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
     return encoded_jwt
+
+# Funcion 4: Toma el token, lo va a abrir, va a extraer el usuario y lo va a buscar en Postgres, si esta todo bien, le da paso al endpoint.
+# Esto le dice a FastAPI donde buscar el token. (en la cabecera 'Authorization')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="http://127.0.0.1:8000/auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    # Armo una excepción genérica por si el token no es válido
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No se pudieron validar las credenciales",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        # Desencripto el token, usando nuestra SECRET_KEY.
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = str = payload.get("sub")
+
+        if username is None:
+            raise credentials_exception
+        
+    except jwt.PyJWTError:
+        # Si el token expiró, esta alterado o es invalido, salta aca.
+        raise credentials_exception
+    
+    # Busco al dueño del token en la base de datos.
+    usuario = db.query(models.User).filter(models.User.username == username).first()
+
+    if usuario is None:
+        raise credentials_exception
+    
+    # todo ok! Devolvemos el objeto usuario, con todos sus datos.
+    return usuario
 

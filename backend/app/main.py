@@ -18,7 +18,7 @@ from app.routers import favorites
 # Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
 models.Base.metadata.create_all(bind=engine)
 
-# Leo el archivo .envy cargo las variables en la memoria.
+# Leo el archivo .env y cargo las variables en la memoria.
 load_dotenv()
 
 app = FastAPI(title="MarketLens API", version="0.1.0")
@@ -101,6 +101,9 @@ def obtener_historial_precios(ticker: str, db: Session = Depends(get_db)):
     
     # Traemos el historial de 1 mes (pueden ser unos 20-22 días hábiles de mercado)
     hist = asset.history(period="1mo")
+
+    # Borro cualquier fila donde el precio de cierre sea NaN. Para que no rompa la logica del grafico.
+    hist = hist.dropna(subset=['Close'])
     
     if hist.empty:
         raise HTTPException(status_code=404, detail=f"No se encontró historial para el ticker {ticker}")

@@ -14,11 +14,74 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnCerrar = document.getElementById('btn-cerrar-panel');
     const panelGeneral = document.getElementById('seccion-grafico');
 
+    // Agrego los elementos del DOM para el login.
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const btnRegistro = document.getElementById('btn-registro');
+    const btnSesion = document.getElementById('btn-sesion');
+
+    // CHEQUEO DE SESION ACTIVA.
+    const tokenGuardado = localStorage.getItem('token');
+    const usuarioGuardado = localStorage.getItem('username');
+
+    if (tokenGuardado && usuarioGuardado) {
+        // Si existen en el localStorage, cambiamos el botón automáticamente sin pedir login
+        btnSesion.innerHTML = `👤 ${usuarioGuardado}`;
+        btnSesion.className = "text-sm bg-gray-700 text-gray-200 font-semibold px-4 py-1.5 rounded-lg border border-gray-600 cursor-default";
+
+        // Si el usuario ya está logueado, ocultamos el boton de registro para que no moleste.
+        if (btnRegistro) btnRegistro.classList.add('hidden');
+    }
+
+    // ---- ESCUCHADORES DE EVENTOS (LISTENERS) ---- 
+
     if (btnCerrar && panelGeneral) {
         btnCerrar.addEventListener('click', () => {
             panelGeneral.style.display = 'none'; // Oculta todo el bloque completo (Grafico + Noticias).
             console.log("❌ Panel lateral cerrado correctamente.");
         })
+    }
+
+    // Evento para el botón de Sesión (Login / Logout)
+    if (btnSesion) {
+        btnSesion.addEventListener('click', () => {
+            // Chequeo si el usuario ya está logueado mirando el localStorage en el momento del click
+            const tokenActivo = localStorage.getItem('token');
+
+            if (tokenActivo) {
+                // CASO A: Ya está logueado -> Quiere cerrar sesión
+                const confirmar = confirm("¿Estás seguro de que querés cerrar sesión?");
+                if (confirmar) {
+                    // Borramos los datos guardados en el navegador
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('username');
+
+                    // Muestro de nuevo el boton de registro.
+                    if (btnRegistro) btnRegistro.classList.remove('hidden');
+
+                    // Devolvemos el botón a su estado original de "Iniciar Sesión"
+                    btnSesion.innerHTML = `Iniciar Sesión`;
+                    btnSesion.className = "text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-1.5 rounded-lg border border-blue-500 transition shadow-md shadow-blue-500/10";
+                    
+                    alert("Sesión cerrada correctamente.");
+                    location.reload();
+                }
+            } else {
+                // CASO B: No está logueado -> Abrimos el Login flotante como antes
+                authContainer.classList.remove('hidden');
+
+                // llamamos a la funcion encargada de controlar el flujo de las pantallas.
+                irAPantallaLogin();
+            }
+        });
+    }
+
+    // Evento para boton de Crear Cuenta, para abrir el registro directo desde el navbar.
+    if (btnRegistro) {
+        btnRegistro.addEventListener('click', (e) => {
+            authContainer.classList.remove('hidden'); // Muestro el fondo desenfocado.
+            irAPantallaRegistro();
+        });
     }
 });
 
@@ -752,3 +815,51 @@ document.getElementById('btn-generar-ia').addEventListener('click', async () => 
         btnGenerar.classList.remove('opacity-50', 'cursor-not-allowed');
     }
 })
+
+
+// ==========================================================================
+//          FUNCIONES PARA LA SECCION DE LOGIN DE LA PAGINA.
+// ==========================================================================
+
+// Funcion global para mostrar el login y configurar su enlace de "Registrate acá".
+function irAPantallaLogin () {
+    const authContainer = document.getElementById('auth-container');
+
+    if (!authContainer) {
+        console.error("❌ ERROR: No se encontró 'auth-container' en el DOM");
+        return;
+    }
+
+    // Le paso al login: el contenedor, la funcion de exito, y la accion si clickea "Registrate acá".
+    mostrarLogin(authContainer, loginExitoso, irAPantallaRegistro);
+}
+
+//Función global para mostrar el registro y configurar su enlace de "Inicia Sesion acá".
+function irAPantallaRegistro () {
+    const authContainer = document.getElementById('auth-container');
+    
+    if (!authContainer) {
+        console.error("❌ ERROR: No se encontró 'auth-container' en el DOM");
+        return;
+    }
+    
+    mostrarRegistro(authContainer, irAPantallaLogin, irAPantallaLogin);
+}
+
+// FUNCION QUE SE EJECUTA SOLO SI EL LOGIN FUE EXITOSO.
+function loginExitoso() {
+    const authContainer = document.getElementById('auth-container');
+    const btnSesion = document.getElementById('btn-sesion');
+
+    // Vuelvo a ocultar el contenedor flotante del login.
+    authContainer.classList.add('hidden');
+
+    // Recuperamos el nombre del usuario guardado en el localStorage.
+    const usuario = localStorage.getItem('username') || 'Usuario';
+
+    // Cambio el boton del navbar para reflejar que ya esta Logueado.
+    btnSesion.innerHTML = `👤 ${usuario}`;
+    btnSesion.className = "text-sm bg-gray-700 text-gray-200 font-semibold px-4 py-1.5 rounded-lg border border-gray-600 cursor-default";
+
+    alert('¡Bienvenido de nuevo, ${usuario}!');
+}

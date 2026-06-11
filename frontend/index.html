@@ -17,9 +17,21 @@
     <nav class="bg-gray-800 border-b border-gray-700 p-4 shadow-lg">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-black tracking-wider text-blue-400">🔍 MARKET<span class="text-white">LENS</span></h1>
-            <span class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full border border-gray-600">PostgreSQL Conectado</span>
+            
+            <div class="flex items-center gap-3"> <button id="btn-registro" class="text-sm bg-transparent hover:bg-gray-750 text-gray-300 hover:text-white font-medium px-3 py-1.5 rounded-lg border border-gray-600 transition">
+                    Crear Cuenta
+                </button>
+
+                <button id="btn-sesion" class="text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-1.5 rounded-lg border border-blue-500 transition shadow-md shadow-blue-500/10">
+                    Iniciar Sesión
+                </button>
+                
+                <span class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full border border-gray-600 hidden md:inline">PostgreSQL Conectado</span>
+            </div>
         </div>
     </nav>
+
+    <div id="auth-container" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"></div>
 
     <main class="container mx-auto p-6 space-y-8">
         
@@ -173,6 +185,9 @@
         </div>
 
     </main>
+
+    <script src="components/register.js"></script>
+    <script src="components/login.js"></script>
 
     <script src="app.js"></script>
 

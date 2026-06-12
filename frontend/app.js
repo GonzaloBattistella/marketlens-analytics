@@ -26,8 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (tokenGuardado && usuarioGuardado) {
         // Si existen en el localStorage, cambiamos el botón automáticamente sin pedir login
-        btnSesion.innerHTML = `👤 ${usuarioGuardado}`;
-        btnSesion.className = "text-sm bg-gray-700 text-gray-200 font-semibold px-4 py-1.5 rounded-lg border border-gray-600 cursor-default";
+        UI_actualizarBotonUsuario(usuarioGuardado);
 
         // Si el usuario ya está logueado, ocultamos el boton de registro para que no moleste.
         if (btnRegistro) btnRegistro.classList.add('hidden');
@@ -56,13 +55,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     localStorage.removeItem('token');
                     localStorage.removeItem('username');
 
-                    // Muestro de nuevo el boton de registro.
-                    if (btnRegistro) btnRegistro.classList.remove('hidden');
+                    // Restauro el estado de la Navbar, vuelvo los botones a su estado original.
+                    UI_restaurarBotonesNavbar();
 
-                    // Devolvemos el botón a su estado original de "Iniciar Sesión"
-                    btnSesion.innerHTML = `Iniciar Sesión`;
-                    btnSesion.className = "text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-1.5 rounded-lg border border-blue-500 transition shadow-md shadow-blue-500/10";
-                    
                     alert("Sesión cerrada correctamente.");
                     location.reload();
                 }
@@ -858,8 +853,7 @@ function loginExitoso() {
     const usuario = localStorage.getItem('username') || 'Usuario';
 
     // Cambio el boton del navbar para reflejar que ya esta Logueado.
-    btnSesion.innerHTML = `👤 ${usuario}`;
-    btnSesion.className = "text-sm bg-gray-700 text-gray-200 font-semibold px-4 py-1.5 rounded-lg border border-gray-600 cursor-default";
+    UI_actualizarBotonUsuario(usuario);
 
     alert('¡Bienvenido de nuevo, ${usuario}!');
 }

@@ -1,7 +1,11 @@
 // --- VISTA Y LOGICA DEL REGISTRO (ACCESIBLE GLOBALMENTE) ---
 function mostrarRegistro(contenedor, onRegistroSuccess, onIrALogin) {
     contenedor.innerHTML = `
-        <div class="max-w-md w-full bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
+        <div class="relative max-w-md w-full bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
+            
+            <button id="btn-cerrar-auth" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl p-1 rounded-lg hover:bg-gray-700 transition">
+                ✕
+            </button>
             
             <div class="text-center">
                 <h2 class="text-3xl font-black text-white tracking-tight">
@@ -50,6 +54,7 @@ function mostrarRegistro(contenedor, onRegistroSuccess, onIrALogin) {
     // LOGICA FORMULARIO DE REGISTRO.
     const form = document.getElementById('registro-form');
     const linkIrLogin = document.getElementById('link-ir-login');
+    const btnCierre = document.getElementById('btn-cerrar-auth');
 
     //Evento para volver al login, si el usuario se equivoco de pantalla.
     if (linkIrLogin) {
@@ -58,6 +63,17 @@ function mostrarRegistro(contenedor, onRegistroSuccess, onIrALogin) {
             onIrALogin(); // ejecuta la accion de volver.
         });
     }
+
+    // Evento que escucha, si se hace click en la cruz de cierre del formulario.
+    if(btnCierre) {
+        btnCierre.addEventListener('click', async (e) => {
+            e.preventDefault();
+            console.log("Cerrando formulario de Registro.");
+            contenedor.classList.add('hidden'); // Ocultamos todo el panel flotante.
+        });
+    }
+
+
 
     form.addEventListener('submit', async (e) => {
         // Evito que se recargue automaticamente la pagina.

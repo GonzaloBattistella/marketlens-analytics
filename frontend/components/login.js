@@ -1,7 +1,11 @@
 // VISTA Y LOGICA DEL LOGIN (ACCESIBLE GLOBALMENTE).
 function mostrarLogin(contenedor, onLoginSuccess, onIrARegistro) {
     contenedor.innerHTML = `
-        <div class="max-w-md w-full bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
+        <div class="relative max-w-md w-full bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
+            
+            <button id="btn-cerrar-auth" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl p-1 rounded-lg hover:bg-gray-700 transition">
+                ✕
+            </button>
             
             <div class="text-center">
                 <h2 class="text-3xl font-black text-white tracking-tight">
@@ -40,6 +44,7 @@ function mostrarLogin(contenedor, onLoginSuccess, onIrARegistro) {
         </div>
     `;
 
+
     // LOGICA DEL FORMULARIO.
     const form = document.getElementById('login-form');
 
@@ -50,6 +55,13 @@ function mostrarLogin(contenedor, onLoginSuccess, onIrARegistro) {
             e.preventDefault();
             console.log("¡Click detectado por delegación hacia Registro!");
             onIrARegistro(); // Pasamos a la pantalla de registro.
+        }
+
+        // Click en la "X" de cierre. 
+        if(e.target && e.target.id === 'btn-cerrar-auth') {
+            e.preventDefault(); // Evito que al clickear no se recargue la pagina.
+            console.log("Cerrando formulario de Inicio de Sesion.");
+            contenedor.classList.add('hidden'); // Ocultamos todo el panel flotante.
         }
     });
     

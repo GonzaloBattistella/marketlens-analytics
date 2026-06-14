@@ -1,5 +1,6 @@
 import requests
 from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 import yfinance as yf
 from app.database import engine
@@ -515,3 +516,13 @@ async def generar_analisis_ia(ticker: str, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"❌ Error en el endpoint de IA: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error interno al generar el análisis: {str(e)}")
+    
+
+# ENDPOINT PARA REALIZAR UN "HEALTH CHECK".
+@app.get("/health", tags=["Monitoreo"])
+def check_health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "online", "database": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error de conexión con la base de datos.")

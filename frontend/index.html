@@ -43,7 +43,11 @@
                     </button>
                 </div>
                 
-                <span class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full border border-gray-600 hidden md:inline">PostgreSQL Conectado</span>
+                <div id="contenedor-estado" class="flex items-center gap-2 bg-gray-750 border border-gray-650 px-2.5 py-1.5 rounded-lg shadow-inner cursor-help" title="Verificando estado del servidor...">
+                    <span id="led-estado" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse ring-2 ring-gray-500/20"></span>
+                    <span id="texto-estado" class="text-xs text-gray-400 font-medium hidden sm:inline">Servidor</span>
+                </div>
+                
             </div>
         </div>
     </nav>

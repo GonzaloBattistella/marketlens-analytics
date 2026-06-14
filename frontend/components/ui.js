@@ -79,3 +79,34 @@ function UI_mostrarAlerta(titulo, mensaje, icono = 'success') {
         }
     });
 }
+
+/**
+ * Verifica el estado del servidor y actualiza el LED indicador en el Navbar.
+ */
+async function UI_verificarEstadoServidor() {
+    const led = document.getElementById('led-estado');
+    const contenedor = document.getElementById('contenedor-estado');
+    const texto = document.getElementById('texto-estado');
+
+    if(!led || !contenedor) return;
+
+    try {
+        const response = await fetch('http://127.0.0.1:8000/health');
+
+        if (response.ok) {
+            // Caso ONLINE: Verde esmeralda con pulso suave.
+            led.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse ring-2 ring-emerald-500/20";
+            contenedor.setAttribute('title', 'Servidor Activo • PostgreSQL Conectado');
+            if (texto) texto.className = "text-xs text-emerald-400 font-medium hidden sm:inline";
+        }else {
+            // Caso ERROR DEL SERVIDOR (Status 500)
+            throw new Error("Server Error");
+        }
+    } catch (error) {
+        // CASO DESCONECTADO (Backend caído por completo o fetch fallido)
+        // Le sacamos el pulso animado para denotar que está "muerto"
+        led.className = "w-2 h-2 rounded-full bg-red-500 ring-2 ring-red-500/20";
+        contenedor.setAttribute('title', 'Servidor Desconectado • Reintentando...');
+        if (texto) texto.className = "text-xs text-red-400 font-medium hidden sm:inline";
+    }
+}

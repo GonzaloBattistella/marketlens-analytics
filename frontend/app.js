@@ -11,6 +11,8 @@ let tipoVistaActual = 'linea'; // valores posibles: 'linea' y 'velas'.
 document.addEventListener("DOMContentLoaded", () => {
     cargarIndicadores();
 
+
+
     const btnCerrar = document.getElementById('btn-cerrar-panel');
     const panelGeneral = document.getElementById('seccion-grafico');
 
@@ -108,6 +110,10 @@ document.addEventListener("DOMContentLoaded", () => {
             irAPantallaRegistro();
         });
     }
+
+    // Ejecutamos el chequeo de salud del servidor de inmediato al cargar la pagina.
+    UI_verificarEstadoServidor();
+    setInterval(UI_verificarEstadoServidor, 30000); // Chequeo el estado automaticamente cada 30 segundos. 
 });
 
 // FUNCIÓN 1: Ir a buscar los indicadores a la DB y dibujarlos en la tabla
@@ -298,7 +304,58 @@ function verHistorial(ticker) {
         })
         .catch(error => {
             console.error("Error técnico real:", error);
-            alert(`⚠️ Para graficar ${ticker}, primero debés consultar el endpoint de actualización (/historial/${ticker}) en el navegador para poblar la base de datos por primera vez.`);
+
+            // Alerta con SweetAlert2
+            Swal.fire({
+                title: 'Activo sin Datos Iniciales',
+                html: `Para poder graficar <strong>${ticker.toUpperCase()}</strong>, la base de datos necesita poblarse por primera vez.<br><br>Por favor, presiona el boton para sincronizar los datos del mercado.`,
+                icon: 'info',
+                showCancelButton: true,
+                background: '#1f2937',
+                color: '#ffffff',
+                confirmButtonColor: '#10b981', // Verde esmeralda para la accion
+                cancelButtonColor: '#ef4444', // Rojo para cancelar
+                confirmButtonText: 'Sincronizar ahora',
+                cancelButtonText: 'Cancelar',
+                customClass: {
+                    popup: 'rounded-2xl border border-gray-700'
+                }
+            }).then((result) => {
+                // Si el usuario hace click en "Sincronizar ahora"
+                if (result.isConfirmed) {
+                    // Mostramos un cartel de "Cargando" para que el usuario sepa que se esta cargando los datos.
+                    Swal.fire({
+                        title: 'Sincronizando...',
+                        text: `Buscando datos históricos de ${ticker.toUpperCase()}. Esto puede demorar unos segundos.`,
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); },
+                        background: '#1f2937',
+                        color: '#ffffff'
+                    });
+
+                    // Le pegamos al endpoint que va a buscar los datos, para cargarlos a DB.
+                    fetch(`${API_URL}/historial/${ticker.toLowerCase()}`)
+                        .then(res => {
+                            if (!res.ok) throw new Error("Error en la sincronizacion.");
+                            return res.json();
+                        })
+                        .then(() => {
+                            // Exito! volvemos a llamar a la funcion, que dibuja el grafico.
+                            Swal.close();
+                            verHistorial(ticker);
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            Swal.fire({
+                                title: 'Error de Red',
+                                text: 'No se pudo poblar la base de datos. Verificá que el servidor esté online.',
+                                icon: 'error',
+                                background: '#1f2937',
+                                color: '#ffffff'
+                            });
+                        });
+                }
+            });
         });
 }
 
@@ -519,10 +576,38 @@ if (btnRefrescar) {
 
                 // 4. Activamos el contador de "Enfriamiento" (Cooldown) de 60 segundos
                 iniciarEnfriamientoBoton(60);
+
+                // Toast de éxito, al refrescar la DB.
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    background: '#1f2937',
+                    color: '#ffffff'
+                });
+                Toast.fire({
+                    icon: 'success',
+                    title: 'Base de datos actualizada con éxito'
+                });
             })
             .catch(error => {
                 console.error("Error al refrescar:", error);
-                alert("❌ No se pudo refrescar la base de datos. Intentá nuevamente.");
+                
+                // Alerta con SweetAlert2
+                Swal.fire({
+                    title: 'Error de Actualización',
+                    text: 'No se pudieron sincronizar los datos globales. Por favor, verificá que el servidor esté online e intentá nuevamente.',
+                    icon: 'error',
+                    background: '#1f2937',
+                    color: '#ffffff',
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: 'Entendido',
+                    customClass: {
+                        popup: 'rounded-2xl border border-gray-700'
+                    }
+                });
 
                 // Si falla, le devolvemos el estado normal al botón al toque
                 btnRefrescar.disabled = false;

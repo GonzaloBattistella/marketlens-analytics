@@ -38,3 +38,24 @@ function UI_restaurarBotonesNavbar() {
         btnRegistro.classList.remove('hidden');
     }
 }
+
+/**
+ * Muestra una alerta estética flotante usando SweetAlert2 (diseño oscuro).
+ * @param {string} titulo - El título principal de la alerta.
+ * @param {string} mensaje - El texto detallado.
+ * @param {string} icono - El tipo de icono: 'success', 'error', 'warning', 'info'.
+ */
+function UI_mostrarAlerta(titulo, mensaje, icono = 'success') {
+    Swal.fire({
+        title: titulo,
+        text: mensaje,
+        icon: icono,
+        background: '#1f2937',    // bg-gray-800 de Tailwind
+        color: '#ffffff',         // Texto blanco
+        confirmButtonColor: '#2563eb', // bg-blue-600 de Tailwind
+        timer: icono === 'success' ? 2500 : null, // Si es exito (bienvenida/registro), el alerta se 
+        customClass: {
+            popup: 'rounded-2xl border border-gray-700 shadow-2xl' // Le clavamos tus bordes redondeados
+        }
+    });
+}

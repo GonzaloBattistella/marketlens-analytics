@@ -49,19 +49,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (tokenActivo) {
                 // CASO A: Ya está logueado -> Quiere cerrar sesión
-                const confirmar = confirm("¿Estás seguro de que querés cerrar sesión?");
-                if (confirmar) {
-                    // Borramos los datos guardados en el navegador
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('username');
-
-                    // Restauro el estado de la Navbar, vuelvo los botones a su estado original.
-                    UI_restaurarBotonesNavbar();
-
-                    alert("Sesión cerrada correctamente.");
-                    location.reload();
-                }
-            } else {
+                // Boton de confirmación creado con SweetAlert2.
+                Swal.fire({
+                    title: '¿Cerrar Sesión?',
+                    text: "Vas a salir de tu cuenta de MarketLens.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',     // Botón rojo para salir
+                    cancelButtonColor: '#3085d6',    // Botón azul para quedarse
+                    confirmButtonText: 'Sí, salir',
+                    cancelButtonText: 'Cancelar',
+                    background: '#1f2937',
+                    color: '#ffffff'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Si confirma, limpiamos todo
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('username');
+                        
+                        // 2. Mostramos cartel de éxito y ESPERAMOS 2 segundos antes de recargar
+                        Swal.fire({
+                            title: '¡Sesión Cerrada!',
+                            text: 'Saliste correctamente de MarketLens.',
+                            icon: 'success',
+                            background: '#1f2937',
+                            color: '#ffffff',
+                            timer: 2000,
+                            timerProgressBar: true,
+                            showConfirmButton: false, // Ni le mostramos el botón de OK, que se cierre sola rápido
+                            customClass: { popup: 'rounded-2xl border border-gray-700' }
+                        }).then(() => {
+                            // 3. Recién cuando se cierra el cartel de éxito, recargamos
+                            UI_restaurarBotonesNavbar();
+                            location.reload();
+                        });
+                    }
+                });
+            }else {
                 // CASO B: No está logueado -> Abrimos el Login flotante como antes
                 authContainer.classList.remove('hidden');
 
@@ -274,7 +298,24 @@ function verHistorial(ticker) {
 
 // FUNCION Auxiliar: Actualiza el grafico, cuando se cambia el rango de dias en el grafico.
 function actualizarGraficoProcesado(datosARenderizar) {
-    // Todo tu código de procesamiento actual usando 'datosARenderizar' en vez de 'datosHistorial'
+    // =========================================================================
+    //    LIMPIEZA DEL REPORTE DE IA (Evita mostrar info del activo anterior)
+    // =========================================================================
+    const estadoInicialIA = document.getElementById('ia-estado-inicial');
+    const estadoCargaIA = document.getElementById('ia-estado-carga');
+    const textoReporteIA = document.getElementById('ia-texto-reporte');
+
+    // Si los elementos existen en pantalla, los reseteamos a su estado de fábrica
+    if (estadoInicialIA && estadoCargaIA && textoReporteIA) {
+        estadoInicialIA.classList.remove('hidden'); // Volvemos a mostrar el estado inicial limpio
+        estadoCargaIA.classList.add('hidden'); // Nos aseguramos de ocultar el spinner de carga
+        textoReporteIA.classList.add('hidden'); // Ocultamos el reporte del activo viejo.
+        textoReporteIA.innerHTML = ''; // Vaciamos el HTML viejo por seguridad.
+    }
+    // =========================================================================
+    
+
+    // Procesamiento de los datos a renderizar.
     const etiquetasFechas = datosARenderizar.map(dia => dia.fecha);
     const preciosCierre = datosARenderizar.map(dia => dia.precio_cierre);
     const volumenes = datosARenderizar.map(dia => dia.volumen || 0);
@@ -843,17 +884,32 @@ function irAPantallaRegistro () {
 
 // FUNCION QUE SE EJECUTA SOLO SI EL LOGIN FUE EXITOSO.
 function loginExitoso() {
-    const authContainer = document.getElementById('auth-container');
-    const btnSesion = document.getElementById('btn-sesion');
-
-    // Vuelvo a ocultar el contenedor flotante del login.
-    authContainer.classList.add('hidden');
-
-    // Recuperamos el nombre del usuario guardado en el localStorage.
+    // Obtengo el nombre de usuario, guardado en el local Storage.
     const usuario = localStorage.getItem('username') || 'Usuario';
 
     // Cambio el boton del navbar para reflejar que ya esta Logueado.
     UI_actualizarBotonUsuario(usuario);
 
-    alert('¡Bienvenido de nuevo, ${usuario}!');
+    // Vuelvo a ocultar el contenedor flotante del login.
+    const authContainer = document.getElementById('auth-container');
+    if(authContainer) authContainer.classList.add('hidden');
+
+    // 3. Mostramos la alerta de bienvenida y ESPERAMOS a que termine
+    Swal.fire({
+        title: `¡Bienvenido, ${usuario}!`,
+        text: "Ingresaste correctamente a MarketLens. Ya podés gestionar tus activos.",
+        icon: 'success',
+        background: '#1f2937',    
+        color: '#ffffff',         
+        confirmButtonColor: '#2563eb', 
+        timer: 3000,                  // ⏱️ La dejamos 3 segundos clavados para que se lea perfecto
+        timerProgressBar: true,       
+        customClass: {
+            popup: 'rounded-2xl border border-gray-700 shadow-2xl' 
+        }
+    }).then(() => {
+        // ESTO SE EJECUTA SOLO CUANDO LA ALERTA DESAPARECE
+        console.log("La alerta terminó, recargando la página...");
+        location.reload(); 
+    });
 }

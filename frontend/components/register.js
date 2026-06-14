@@ -35,7 +35,7 @@ function mostrarRegistro(contenedor, onRegistroSuccess, onIrALogin) {
                     <label class="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
                     <input type="password" id="registro-password" required 
                         class="w-full px-4 py-2.5 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 transition-all"
-                        placeholder="••••••••">
+                        placeholder="Escribí una contraseña segura">
                 </div>
 
                 <button type="submit" id="registro-btn"
@@ -112,7 +112,7 @@ function mostrarRegistro(contenedor, onRegistroSuccess, onIrALogin) {
             }
 
             // Si salio bien, ejecutamos la funcion de exito pasandole los datos.
-            alert("¡Cuenta creada con éxito! Ahora podés iniciar sesión.");
+            UI_mostrarAlerta("¡Registro Exitoso!", "Tu cuenta se ha creado correctamente. Ya podés iniciar sesión.", "success");
             onRegistroSuccess();
         }
         catch (err) {

@@ -28,7 +28,7 @@ function mostrarLogin(contenedor, onLoginSuccess, onIrARegistro) {
                     <label class="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
                     <input type="password" id="login-password" required 
                         class="w-full px-4 py-2.5 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 transition-all"
-                        placeholder="••••••••">
+                        placeholder="Ingresá tu contraseña">
                 </div>
 
                 <button type="submit" id="login-btn"
@@ -106,8 +106,25 @@ function mostrarLogin(contenedor, onLoginSuccess, onIrARegistro) {
             onLoginSuccess();
         }
         catch (err) {
-            errorAlert.innerText = err.message;
-            errorAlert.classList.remove('hidden');
+            // Si el error es de red (ej: el backend está caído, fetch tira error de TypeError)
+            if (err.message.includes("Failed to fetch") || err.message.includes("fetch")) {
+                UI_mostrarAlerta(
+                    "Error de Conexión", 
+                    "No se pudo establecer comunicación con el servidor. Por favor, intentá más tarde.", 
+                    "error"
+                );
+            } else {
+                // Si es un error común (contraseña incorrecta, usuario no existe), usamos el cartelito rojo
+                errorAlert.innerText = err.message;
+                errorAlert.classList.remove('hidden');
+
+                // Vacío el campo de contraseña para que vuelva a intentar de cero.
+                const inputPassword = document.getElementById('login-password');
+                if(inputPassword) {
+                    inputPassword.value = '';
+                    inputPassword.focus(); // Dejo el cursor titilando dentro del campo de la contraseña.
+                }
+            }
         }
         finally {
             loginBtn.disabled = false;

@@ -6,19 +6,35 @@
 function UI_actualizarBotonUsuario(username) {
     const btnSesion = document.getElementById('btn-sesion');
     const btnRegistro = document.getElementById('btn-registro');
+    const contenedorUsuario = document.getElementById('contenedor-usuario');
+    const navbarUsername = document.getElementById('navbar-username');
+    const avatarUsuario = document.getElementById('avatar-usuario'); // Contenedor del circulo. 
 
-    if (btnSesion) {
-        btnSesion.innerHTML = `
-            <span class="flex items-center gap-1.5 w-full">
-                <span class="text-purple-400 text-lg">👤</span>
-                <span class="text-white font-medium truncate">${username}</span>
-            </span>
-        `;
-        btnSesion.className = "flex items-center justify-start text-sm bg-gray-700 hover:bg-gray-650 px-3.5 py-1.5 rounded-lg border border-gray-600 transition min-w-[120px] cursor-default";
+
+    // Ocultamos los botones de Auth (Crear Cuenta, Iniciar Sesion).
+    if(btnSesion) btnSesion.classList.add('hidden');
+    if(btnRegistro) btnRegistro.classList.add('hidden');
+
+    // Inyectamos el nombre en el nuevo bloque y lo mostramos.
+    if(contenedorUsuario && navbarUsername) {
+        navbarUsername.textContent = username;
+        contenedorUsuario.classList.remove('hidden');
     }
 
-    if (btnRegistro) {
-        btnRegistro.classList.add('hidden');
+    // Controlamos dinamicamente la foto de perfil o el avatar por defecto.
+    if(avatarUsuario) {
+        const fotoGuardada = localStorage.getItem('foto_perfil');
+
+        // Si hay una URL válida guardada en el localStorage, agregamos una etiqueta img.
+        if (fotoGuardada && fotoGuardada != 'null' && fotoGuardada.trim() != '') {
+            avatarUsuario.innerHTML = `
+                <img src="${fotoGuardada}" alt="${username}" 
+                     class="w-full h-full rounded-full object-cover">
+            `;
+        }else {
+            // Si es null o está vacia, dejamos el icono por defecto.
+            avatarUsuario.innerHTML = `👤`;
+        }
     }
 }
 
@@ -28,6 +44,10 @@ function UI_actualizarBotonUsuario(username) {
 function UI_restaurarBotonesNavbar() {
     const btnSesion = document.getElementById('btn-sesion');
     const btnRegistro = document.getElementById('btn-registro');
+    const contenedorUsuario = document.getElementById('contenedor-usuario');
+
+    // Ocultamos el bloque de perfil.
+    if(contenedorUsuario) contenedorUsuario.classList.add('hidden');
 
     if(btnSesion) {
         btnSesion.innerHTML = `Iniciar Sesión`;

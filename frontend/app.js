@@ -30,6 +30,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Si el usuario ya está logueado, ocultamos el boton de registro para que no moleste.
         if (btnRegistro) btnRegistro.classList.add('hidden');
+    }else{
+        // Mostramos los botones de IniciarSesion/Registro.
+        UI_restaurarBotonesNavbar();
     }
 
     // ---- ESCUCHADORES DE EVENTOS (LISTENERS) ---- 
@@ -41,57 +44,60 @@ document.addEventListener("DOMContentLoaded", () => {
         })
     }
 
-    // Evento para el botón de Sesión (Login / Logout)
+    // Boton Iniciar Sesión (abre el formulario de Login).
     if (btnSesion) {
         btnSesion.addEventListener('click', () => {
-            // Chequeo si el usuario ya está logueado mirando el localStorage en el momento del click
-            const tokenActivo = localStorage.getItem('token');
-
-            if (tokenActivo) {
-                // CASO A: Ya está logueado -> Quiere cerrar sesión
-                // Boton de confirmación creado con SweetAlert2.
-                Swal.fire({
-                    title: '¿Cerrar Sesión?',
-                    text: "Vas a salir de tu cuenta de MarketLens.",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',     // Botón rojo para salir
-                    cancelButtonColor: '#3085d6',    // Botón azul para quedarse
-                    confirmButtonText: 'Sí, salir',
-                    cancelButtonText: 'Cancelar',
-                    background: '#1f2937',
-                    color: '#ffffff'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Si confirma, limpiamos todo
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('username');
-                        
-                        // 2. Mostramos cartel de éxito y ESPERAMOS 2 segundos antes de recargar
-                        Swal.fire({
-                            title: '¡Sesión Cerrada!',
-                            text: 'Saliste correctamente de MarketLens.',
-                            icon: 'success',
-                            background: '#1f2937',
-                            color: '#ffffff',
-                            timer: 2000,
-                            timerProgressBar: true,
-                            showConfirmButton: false, // Ni le mostramos el botón de OK, que se cierre sola rápido
-                            customClass: { popup: 'rounded-2xl border border-gray-700' }
-                        }).then(() => {
-                            // 3. Recién cuando se cierra el cartel de éxito, recargamos
-                            UI_restaurarBotonesNavbar();
-                            location.reload();
-                        });
-                    }
-                });
-            }else {
-                // CASO B: No está logueado -> Abrimos el Login flotante como antes
+            const authContainer = document.getElementById('auth-container');
+            if (authContainer) {
                 authContainer.classList.remove('hidden');
-
-                // llamamos a la funcion encargada de controlar el flujo de las pantallas.
-                irAPantallaLogin();
             }
+
+            irAPantallaLogin();
+        });
+    }
+
+    // Boton de cerrar sesión.
+    const btnLogout = document.getElementById('btn-logout');
+
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            Swal.fire({
+                title: '¿Cerrar Sesión?',
+                text: "Vas a salir de tu cuenta de MarketLens.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',     // Botón rojo para salir
+                cancelButtonColor: '#3085d6',    // Botón azul para quedarse
+                confirmButtonText: 'Sí, salir',
+                cancelButtonText: 'Cancelar',
+                background: '#1f2937',
+                color: '#ffffff',
+                customClass: { popup: 'rounded-2xl border border-gray-700' }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Si confirma, limpiamos el almacenamiento local
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('foto_perfil');
+
+                    // Mostramos cartel de éxito animado de SweetAlert2
+                    Swal.fire({
+                        title: '¡Sesión Cerrada!',
+                        text: 'Saliste correctamente de MarketLens.',
+                        icon: 'success',
+                        background: '#1f2937',
+                        color: '#ffffff',
+                        timer: 2000,
+                        timerProgressBar: true,
+                        showConfirmButton: false,
+                        customClass: { popup: 'rounded-2xl border border-gray-700' }
+                    }).then(() => {
+                        // Restauramos la barra y recargamos la app limpia
+                        UI_restaurarBotonesNavbar();
+                        location.reload();
+                    });
+                }
+            });
         });
     }
 
@@ -107,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // FUNCIÓN 1: Ir a buscar los indicadores a la DB y dibujarlos en la tabla
 function cargarIndicadores() {
     const tablaBody = document.getElementById("tabla-indicadores-body");
-    
+
     // Le pegamos al endpoint de lectura rápida que creamos hace un rato
     fetch(`${API_URL}/db/indicadores`)
         .then(response => {
@@ -137,14 +143,14 @@ function cargarIndicadores() {
                 const signo = activo.variacion_porcentual >= 0 ? "+" : "";
 
                 // Formateamos la capitalización de mercado para que no sea un número gigante e ilegible
-                const capMercadoFormateada = activo.capitalizacion_mercado 
-                    ? `$${(activo.capitalizacion_mercado / 1e9).toFixed(2)} B` 
+                const capMercadoFormateada = activo.capitalizacion_mercado
+                    ? `$${(activo.capitalizacion_mercado / 1e9).toFixed(2)} B`
                     : "N/A";
 
                 // Creamos la fila (tr) con los datos del activo
                 const fila = document.createElement("tr");
                 fila.className = "hover:bg-gray-750 transition duration-150 border-b border-gray-700";
-                
+
                 fila.innerHTML = `
                     <td class="p-4 text-gray-500 font-mono">${activo.id}</td>
                     <td class="p-4 font-bold text-blue-400 tracking-wider">${activo.ticker}</td>
@@ -165,7 +171,7 @@ function cargarIndicadores() {
 
                     </td>
                 `;
-                
+
                 // Inyectamos la fila adentro del cuerpo de la tabla
                 tablaBody.appendChild(fila);
             });
@@ -189,11 +195,11 @@ const mensajeBusqueda = document.getElementById("mensaje-busqueda");
 
 buscadorForm.addEventListener("submit", (e) => {
     // Evitamos que la página se recargue de golpe (comportamiento por defecto de los formularios HTML)
-    e.preventDefault(); 
-    
+    e.preventDefault();
+
     // Agarramos el texto del input, le sacamos los espacios y lo pasamos a mayúsculas
     const ticker = tickerInput.value.trim().toUpperCase();
-    
+
     if (!ticker) return;
 
     // Mostramos un estado de "Cargando..." en la pantalla
@@ -219,7 +225,7 @@ buscadorForm.addEventListener("submit", (e) => {
             // ¡Éxito! El backend ya lo guardó en la DB
             mensajeBusqueda.textContent = `✨ ¡${ticker} (${data.nombre}) agregado con éxito a la base de datos!`;
             mensajeBusqueda.className = "text-sm mt-2 text-green-400 font-medium";
-            
+
             // Limpiamos el campo de texto
             tickerInput.value = "";
 
@@ -235,7 +241,7 @@ buscadorForm.addEventListener("submit", (e) => {
             // Volvemos a habilitar el botón cuando termine todo el proceso (haya salido bien o mal)
             botonSubmit.disabled = false;
             botonSubmit.classList.remove("opacity-50", "cursor-not-allowed");
-            
+
             // Escondemos el mensaje automáticamente después de 4 segundos para que quede limpio
             setTimeout(() => {
                 mensajeBusqueda.classList.add("hidden");
@@ -251,16 +257,16 @@ function verHistorial(ticker) {
 
     const seccionGrafico = document.getElementById("seccion-grafico");
     const graficoTitulo = document.getElementById("grafico-titulo") || document.getElementById("titulo-grafico");
-    
+
     // Mostramos la sección del gráfico (le sacamos la clase 'hidden' de Tailwind)
     seccionGrafico.classList.remove("hidden");
-    
+
     if (graficoTitulo) {
         graficoTitulo.textContent = `📈 Historial de Precios: ${ticker}`;
     }
 
     // Disparamos las noticias en paralelo.
-    cargarNoticias(ticker); 
+    cargarNoticias(ticker);
 
     // Le pegamos a tu endpoint de lectura rápida de la base de datos
     fetch(`${API_URL}/db/historial/${ticker}`)
@@ -275,7 +281,7 @@ function verHistorial(ticker) {
             //          PROCESAMIENTO Y CÁLCULOS
             // ==========================================
             datosHistorialCompletos = datosHistorial; // Me guardo los datos de los 30 dias.
-            
+
 
             // Reseteamos el slider a 30, cada vez que se abre un activo nuevo.
             const slider = document.getElementById("range-dias");
@@ -313,7 +319,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
         textoReporteIA.innerHTML = ''; // Vaciamos el HTML viejo por seguridad.
     }
     // =========================================================================
-    
+
 
     // Procesamiento de los datos a renderizar.
     const etiquetasFechas = datosARenderizar.map(dia => dia.fecha);
@@ -384,7 +390,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
 
     miGrafico = new Chart(ctx, {
         data: {
-            labels: etiquetasFechas, 
+            labels: etiquetasFechas,
             datasets: [
                 datasetPrincipal, // Inyectamos dinámicamente la Línea o las Velas aquí
                 {
@@ -405,7 +411,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             const index = context.dataIndex;
                             if (context.datasetIndex === 0) {
                                 return [
@@ -416,7 +422,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
                                     `📊 Vol: ${volumenes[index].toLocaleString()}`
                                 ];
                             }
-                                return `📊 Volumen: ${context.raw.toLocaleString()}`;
+                            return `📊 Volumen: ${context.raw.toLocaleString()}`;
                         }
                     }
                 },
@@ -453,13 +459,13 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     display: true,
                     position: 'left',
                     grid: { color: '#374151' },
-                    ticks: { 
-                        color: '#9ca3af', 
-                        callback: function(value) { return '$' + value.toFixed(2); } 
+                    ticks: {
+                        color: '#9ca3af',
+                        callback: function (value) { return '$' + value.toFixed(2); }
                     },
                     // Le damos un margen inteligente de holgura por encima y por debajo
                     // Le restamos un 5% al mínimo absoluto para que no toque el piso
-                    min: Math.floor(minimoAbsoluto * 0.95), 
+                    min: Math.floor(minimoAbsoluto * 0.95),
                     // Le sumamos un 5% al máximo absoluto para que no toque el techo
                     max: Math.ceil(maximoAbsoluto * 1.05)
                 },
@@ -476,7 +482,7 @@ function cambiarRangoDias(cantidadDias) {
     //Actualizamos el texto en el HTML, para que el usuario vea que numero eligió.
     document.getElementById("valor-dias").innerText = dias;
 
-    if(!datosHistorialCompletos || datosHistorialCompletos.length === 0) {
+    if (!datosHistorialCompletos || datosHistorialCompletos.length === 0) {
         console.warn("No hay datos historicos cargados para recortar.");
         return;
     }
@@ -507,17 +513,17 @@ if (btnRefrescar) {
             })
             .then(data => {
                 console.log("DB Refrescada:", data.message);
-                
+
                 // 3. Como los datos cambiaron en Postgres, refrescamos la tabla visual
                 cargarIndicadores();
-                
+
                 // 4. Activamos el contador de "Enfriamiento" (Cooldown) de 60 segundos
                 iniciarEnfriamientoBoton(60);
             })
             .catch(error => {
                 console.error("Error al refrescar:", error);
                 alert("❌ No se pudo refrescar la base de datos. Intentá nuevamente.");
-                
+
                 // Si falla, le devolvemos el estado normal al botón al toque
                 btnRefrescar.disabled = false;
                 btnRefrescar.classList.remove("opacity-50", "cursor-not-allowed");
@@ -529,11 +535,11 @@ if (btnRefrescar) {
 // Función auxiliar para manejar la cuenta regresiva del botón
 function iniciarEnfriamientoBoton(segundosTotales) {
     let tiempoRestante = segundosTotales;
-    
+
     // Usamos un intervalo que se ejecuta cada 1 segundo (1000ms)
     const temporizador = setInterval(() => {
         tiempoRestante--;
-        
+
         if (tiempoRestante > 0) {
             // Mostramos los segundos que faltan para poder volver a clickear
             btnRefrescar.innerHTML = `⏳ Esperá ${tiempoRestante}s...`;
@@ -570,7 +576,7 @@ function eliminarActivo(ticker) {
     // 4. Creamos la función que se ejecutará si el usuario dice que SÍ
     const manejarConfirmacion = () => {
         console.log(`🗑️ Eliminando de forma confirmada: ${ticker}`);
-        
+
         // Hacemos el fetch que ya teníamos programado
         fetch(`${API_URL}/db/indicadores/${ticker}`, { method: "DELETE" })
             .then(response => {
@@ -582,11 +588,11 @@ function eliminarActivo(ticker) {
                 modalTitulo.innerText = "✨ ¡Éxito!";
                 modalTitulo.className = "text-xl font-bold text-emerald-400 mb-2"; // Verde lindo financiera
                 modalMensaje.innerHTML = `El activo <strong>${ticker}</strong> y su historial se eliminaron correctamente.`;
-                
+
                 // Ocultamos los dos botones viejos y creamos un botón temporal de "OK"
                 btnConfirmar.classList.add("hidden");
                 btnCancelar.innerText = "Entendido";
-                
+
                 // Cuando toca "Entendido", refrescamos la tabla y cerramos del todo
                 const finalizarTodo = () => {
                     cerrarModal();
@@ -597,12 +603,12 @@ function eliminarActivo(ticker) {
             })
             .catch(error => {
                 console.error(error);
-                
+
                 // CASO DE ERROR: Transformamos el modal en un cartel de alerta rojo
                 modalTitulo.innerText = "⚠️ Hubo un problema";
                 modalTitulo.className = "text-xl font-bold text-red-500 mb-2"; // Rojo de advertencia
                 modalMensaje.innerHTML = `No se pudo eliminar a <strong>${ticker}</strong>.<br><span class="text-xs text-slate-500">Detalle: ${error.message}</span>`;
-                
+
                 // Ocultamos el botón de confirmar (porque ya falló) y el de cancelar dice "Cerrar"
                 btnConfirmar.classList.add("hidden");
                 btnCancelar.innerText = "Cerrar";
@@ -627,7 +633,7 @@ function eliminarActivo(ticker) {
 function cambiarTipoVista(nuevaVista) {
     // Si hay un grafico dibujado, lo destruimos.
     // Esto obliga a Chart.js a resetear los ejes (X e Y) desde cero.
-    if(miGrafico) {
+    if (miGrafico) {
         miGrafico.destroy();
         miGrafico = null; // Limpio la variable, para asegurar un lienzo nuevo.
     }
@@ -673,7 +679,7 @@ async function cargarNoticias(ticker) {
     }
 
     // Ponemos el estado de carga por si cambia el activo.
-    contenedor. innerHTML = `
+    contenedor.innerHTML = `
         <div class="text-xs text-center py-12 text-slate-500">
             <span class="inline-block animate-spin mr-1">⏳</span> Buscando primicias del mercado...
         </div>
@@ -706,10 +712,10 @@ async function cargarNoticias(ticker) {
         noticias.forEach(articulo => {
             // Aseguramos que haya un título, si no viene ponemos un genérico
             const titulo = articulo.title || "Novedades en el mercado financiero";
-            
+
             // Si la descripción no existe o está vacía, ponemos un texto seguro
-            const descripcion = articulo.description && articulo.description.trim() !== "" 
-                ? articulo.description 
+            const descripcion = articulo.description && articulo.description.trim() !== ""
+                ? articulo.description
                 : "Hacé clic para conocer los detalles completos de esta novedad del mercado.";
 
             // Validamos la fuente / medio de comunicación
@@ -717,7 +723,7 @@ async function cargarNoticias(ticker) {
 
             // Validamos la miniatura, si no hay ponemos la de Unsplash
             const imagenUrl = articulo.image_url || "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=150&auto=format&fit=crop&q=60";
-            
+
             // Formateamos la fecha de publicación de manera segura
             let fechaHumana = "Reciente";
             if (articulo.published_at) {
@@ -762,7 +768,7 @@ async function cargarNoticias(ticker) {
             // Inyectamos la tarjeta adentro del panel
             contenedor.insertAdjacentHTML("beforeend", tarjetaHTML);
         });
-    } catch(error) {
+    } catch (error) {
         console.log("Error al cargar las noticias: ", error);
         contenedor.innerHTML = `
             <div class="text-xs text-center py-12 text-red-400">
@@ -778,7 +784,7 @@ async function cargarNoticias(ticker) {
 // ==========================================================================
 
 // Función auxiliar para renderizar Markdown basico que devuelve la IA.
-function mapearMarkdownAHTML(textoMarkdown){
+function mapearMarkdownAHTML(textoMarkdown) {
     let html = textoMarkdown
         // Convertir títulos ### Ejemplo a <h3>
         .replace(/^### (.*$)/gim, '<h4 class="text-md font-bold text-indigo-400 mt-4 mb-2 tracking-wide border-b border-slate-800/50 pb-1">$1</h4>')
@@ -810,13 +816,13 @@ document.getElementById('btn-generar-ia').addEventListener('click', async () => 
     // deshabilito el boton temporalmente para evitar que el usuario no haga spam de clicks.
     btnGenerar.disabled = true;
     btnGenerar.classList.add('opacity-50', 'cursor-not-allowed');
-    
-    try{
+
+    try {
         // Peticion fetch al Backend de FastAPI.
         const url = `http://127.0.0.1:8000/api/analisis/${ticker}`;
         const response = await fetch(url);
 
-        if (!response.ok){
+        if (!response.ok) {
             throw new Error('Error en el servidor: ${response.statusText}');
         }
 
@@ -833,7 +839,7 @@ document.getElementById('btn-generar-ia').addEventListener('click', async () => 
 
 
     }
-    catch (error){
+    catch (error) {
         console.error("❌ Error al procesar el reporte de IA:", error);
 
         // Estado de error en la Interfaz.
@@ -845,7 +851,7 @@ document.getElementById('btn-generar-ia').addEventListener('click', async () => 
         estadoCarga.classList.add('hidden');
         textoReporte.classList.remove('hidden');
     }
-    finally{
+    finally {
         // Rehabilito el boton al terminar (sea Exito o Error). 
         btnGenerar.disabled = false;
         btnGenerar.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -858,7 +864,7 @@ document.getElementById('btn-generar-ia').addEventListener('click', async () => 
 // ==========================================================================
 
 // Funcion global para mostrar el login y configurar su enlace de "Registrate acá".
-function irAPantallaLogin () {
+function irAPantallaLogin() {
     const authContainer = document.getElementById('auth-container');
 
     if (!authContainer) {
@@ -871,14 +877,14 @@ function irAPantallaLogin () {
 }
 
 //Función global para mostrar el registro y configurar su enlace de "Inicia Sesion acá".
-function irAPantallaRegistro () {
+function irAPantallaRegistro() {
     const authContainer = document.getElementById('auth-container');
-    
+
     if (!authContainer) {
         console.error("❌ ERROR: No se encontró 'auth-container' en el DOM");
         return;
     }
-    
+
     mostrarRegistro(authContainer, irAPantallaLogin, irAPantallaLogin);
 }
 
@@ -892,24 +898,24 @@ function loginExitoso() {
 
     // Vuelvo a ocultar el contenedor flotante del login.
     const authContainer = document.getElementById('auth-container');
-    if(authContainer) authContainer.classList.add('hidden');
+    if (authContainer) authContainer.classList.add('hidden');
 
     // 3. Mostramos la alerta de bienvenida y ESPERAMOS a que termine
     Swal.fire({
         title: `¡Bienvenido, ${usuario}!`,
         text: "Ingresaste correctamente a MarketLens. Ya podés gestionar tus activos.",
         icon: 'success',
-        background: '#1f2937',    
-        color: '#ffffff',         
-        confirmButtonColor: '#2563eb', 
+        background: '#1f2937',
+        color: '#ffffff',
+        confirmButtonColor: '#2563eb',
         timer: 3000,                  // ⏱️ La dejamos 3 segundos clavados para que se lea perfecto
-        timerProgressBar: true,       
+        timerProgressBar: true,
         customClass: {
-            popup: 'rounded-2xl border border-gray-700 shadow-2xl' 
+            popup: 'rounded-2xl border border-gray-700 shadow-2xl'
         }
     }).then(() => {
         // ESTO SE EJECUTA SOLO CUANDO LA ALERTA DESAPARECE
         console.log("La alerta terminó, recargando la página...");
-        location.reload(); 
+        location.reload();
     });
 }

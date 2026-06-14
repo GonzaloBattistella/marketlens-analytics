@@ -26,6 +26,22 @@
                 <button id="btn-sesion" class="text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-1.5 rounded-lg border border-blue-500 transition shadow-md shadow-blue-500/10">
                     Iniciar Sesión
                 </button>
+
+                <!-- NUEVO CONTENEDOR DE PERFIL COMPLETO (Arranca oculto con 'hidden') -->
+                <div id="contenedor-usuario" class="hidden flex items-center gap-3 bg-gray-750 border border-gray-650 px-3 py-1.5 rounded-xl shadow-inner">
+                    <!-- Círculo para la foto de perfil -->
+                    <div class="w-7 h-7 rounded-full bg-purple-900/50 border border-purple-500/40 flex items-center justify-center text-sm shadow">
+                        <span id="avatar-usuario">👤</span>
+                    </div>
+                    
+                    <!-- Nombre de usuario -->
+                    <span id="navbar-username" class="text-sm text-white font-medium truncate max-w-[100px]"></span>
+                    
+                    <!--Botón Independiente de Cerrar Sesión (Con un icono facha) -->
+                    <button id="btn-logout" class="text-gray-400 hover:text-red-400 p-1 rounded-md hover:bg-gray-700/50 transition" title="Cerrar Sesión">
+                        🚪
+                    </button>
+                </div>
                 
                 <span class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full border border-gray-600 hidden md:inline">PostgreSQL Conectado</span>
             </div>

@@ -72,7 +72,8 @@ def login_user(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Sess
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "username": usuario.username
+        "username": usuario.username,
+        "foto_perfil": usuario.foto_perfil
     }
 
 

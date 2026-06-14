@@ -45,6 +45,7 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False) #Contraseña encriptada.
+    foto_perfil = Column(String(500), nullable=True, default=None)
 
     # Relacion: Un usuario puede tener muchos favoritos.
     favoritos = relationship("UserFavorite", back_populates="usuario", cascade="all, delete-orphan") # Para que en casa de borrar un usuario, los favoritos tambien se borren, automaticamente.

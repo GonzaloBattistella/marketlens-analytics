@@ -101,6 +101,7 @@ function mostrarLogin(contenedor, onLoginSuccess, onIrARegistro) {
             // Guardamos el Token en el navegador.
             localStorage.setItem('token', data.access_token);
             localStorage.setItem('username', data.username);
+            localStorage.setItem('foto_perfil', data.foto_perfil || '');
 
             // Aviso que el login fue un éxito.
             onLoginSuccess();

@@ -16,7 +16,8 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
-    email: str
+    email: EmailStr
+    foto_perfil: Optional[str] = None # Permitimos que devuelva texto o None.
 
     class Config: 
         from_attributes = True # Le permite a Pydantic, leer modelos de SQLAlchemy.

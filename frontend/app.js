@@ -5,13 +5,12 @@ let tickerGLobal = "";
 let miGrafico = null;
 let datosHistoricosCompletos = []; // Para guardar los datos del historial originales.
 let tipoVistaActual = 'linea'; // valores posibles: 'linea' y 'velas'.
+let misfavoritosGlobal = []; // Variable global, donde se almacenan los favortios del usuario.
 
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
 document.addEventListener("DOMContentLoaded", () => {
     cargarIndicadores();
-
-
 
     const btnCerrar = document.getElementById('btn-cerrar-panel');
     const panelGeneral = document.getElementById('seccion-grafico');
@@ -111,6 +110,29 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Disparo inicial para poblar la Watchlist con datos reales de la base de datos.
+    cargarWatchlist();
+
+    // CONFIGURACIÓN DE LOS EVENTOS DE LA WATCHLIST.
+    const btnAbrirWatchlist = document.getElementById('btn-abrir-watchlist');
+    const btnCerrarWatchlist = document.getElementById('btn-cerrar-watchlist');
+    const watchlistOverlay = document.getElementById('watchlist-overlay');
+
+    // Click en la estrella del Navbar -> Cierra la barra.
+    if (btnAbrirWatchlist) {
+        btnAbrirWatchlist.addEventListener('click', () => UI_toggleWatchlist(true));
+    }
+
+    // Click en la "X" de la barra -> Cierra la barra.
+    if (btnCerrarWatchlist) {
+        btnCerrarWatchlist.addEventListener('click', () => UI_toggleWatchlist(false));
+    }
+
+    // Click en el fondo oscuro difuminado -> Cierra la barra.
+    if (watchlistOverlay) {
+        watchlistOverlay.addEventListener('click', () => UI_toggleWatchlist(false));
+    }
+
     // Ejecutamos el chequeo de salud del servidor de inmediato al cargar la pagina.
     UI_verificarEstadoServidor();
     setInterval(UI_verificarEstadoServidor, 30000); // Chequeo el estado automaticamente cada 30 segundos. 
@@ -153,6 +175,15 @@ function cargarIndicadores() {
                     ? `$${(activo.capitalizacion_mercado / 1e9).toFixed(2)} B`
                     : "N/A";
 
+                // Pregunto si este activo es un favorito o no.
+                const esFavorito = misfavoritosGlobal.includes(activo.ticker);
+
+                // Si es favorito, lo pintamos de amarillo, sino de gris.
+                const claseEstrella = esFavorito ? "text-amber-400" : "text-gray-500 hover:text-amber-300";
+
+                // si es favorito, el SVG se rellena (fill="currentColor"), si no queda vacio (fill="none")
+                const rellenoEstrella = esFavorito ? "currentColor" : "none";
+
                 // Creamos la fila (tr) con los datos del activo
                 const fila = document.createElement("tr");
                 fila.className = "hover:bg-gray-750 transition duration-150 border-b border-gray-700";
@@ -165,6 +196,15 @@ function cargarIndicadores() {
                     <td class="p-4 text-right font-semibold ${claseColor}">${signo}${activo.variacion_porcentual.toFixed(2)}%</td>
                     <td class="p-4 text-right text-gray-400">${capMercadoFormateada}</td>
                     <td class="pl-6 pr-4 py-4 flex flex-row items-center justify-end gap-3 whitespace-nowrap">
+                        
+                        <button onclick="alternarFavorito('${activo.ticker}', ${esFavorito})" 
+                                class="${claseEstrella} p-1.5 rounded-lg hover:bg-gray-700 transition-colors" 
+                                title="${esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="${rellenoEstrella}" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                            </svg>
+                        </button>
+                    
                         <button class="bg-gray-700 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded transition" onclick="verHistorial('${activo.ticker}')">
                             📈 Ver Historial
                         </button>
@@ -1002,5 +1042,102 @@ function loginExitoso() {
         // ESTO SE EJECUTA SOLO CUANDO LA ALERTA DESAPARECE
         console.log("La alerta terminó, recargando la página...");
         location.reload();
+    });
+}
+
+// =========================================================================
+//                          FUNCIONES PARA LA WATCHLIST
+// =========================================================================
+
+/**
+ * Obtiene los tickers favoritos del usuario desde el backend y manda a renderizar la watchlist.
+ */
+function cargarWatchlist() {
+    // Recuperamos el token de seguridad que guardaste al iniciar sesión.
+    const token = localStorage.getItem("token");
+
+    console.log("Token recuperado de localStorage:", token);
+
+    if (!token) {
+        console.warn("Watchlist: No hay un usuario autenticado o token disponible.");
+        return;
+    }
+
+    // Le pegamos al endpoint real de favoritos.
+    fetch(`${API_URL}/favorites`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`, // Le pasamos el pase de seguridad al backend.
+            "Content-Type": "application/json"
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("No se pudieron recuperar los favoritos del servidor.");
+        }
+        return response.json(); // El backend devuelve un array de string.
+    })
+    .then(listaTickers => {
+        console.log("Watchlist cargada desde Postgres:", listaTickers);
+
+        // Guardamos los tickers en la variable global.
+        misfavoritosGlobal = listaTickers;
+
+        // Le paso los datos reales a la función que renderiza las tarjetas de los tickers.
+        UI_renderizarWatchlist(listaTickers); 
+
+        // Con los datos confirmados, mandamos a dibujar el tablero principal.
+        cargarIndicadores();
+    })
+    .catch(error => {
+        console.error("Error al cargar la Watchlist:", error);
+    });
+}
+
+
+// FUNCION PARA ALTERNAR LOS FAVORITOS.
+/**
+ * Agrega o elimina un activo de los favoritos del usuario interactuando con la API
+ * @param {string} ticker - El símbolo del activo (ej: 'AAPL')
+ * @param {boolean} esFavorito - Estado actual del activo en la tabla
+ */
+function alternarFavorito(ticker, esFavorito) {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Debes iniciar sesión para administrar tus favoritos.");
+        return;
+    }
+
+    const metodo = esFavorito ? "DELETE" : "POST";
+    const accion = esFavorito ? "remove" : "add";
+    
+    // URL CORRECTA (Validada por Swagger): El ticker viaja en la URL
+    const url = `${API_URL}/favorites/${accion}?ticker=${ticker}`;
+
+    console.log(`Enviando petición oficial: ${metodo} -> ${url}`);
+
+    // Ejecutamos el Fetch limpio (Sin body, igual que en el GET)
+    fetch(url, {
+        method: metodo,
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Error en el servidor: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log("¡ÉXITO! Backend respondió:", data);
+        
+        // Actualizamos la interfaz en tiempo real
+        cargarWatchlist();   // Recarga la barra lateral con el nuevo favorito.
+    })
+    .catch(error => {
+        console.error("Error en alternarFavorito:", error);
     });
 }

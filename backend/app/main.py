@@ -30,7 +30,10 @@ app.include_router(favorites.router)
 # Configuramos los permisos de CORS para que el frontend pueda consultar la API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Permite que cualquier origen (como tu Live Server) se conecte
+    allow_origins=[
+        "http://127.0.0.1:5500",  # El puerto clásico de Live Server
+        "http://localhost:5500"   # Por si las dudas mapea por localhost
+    ],
     allow_credentials=True,
     allow_methods=["*"], # Permite todos los métodos (GET, POST, etc.)
     allow_headers=["*"], # Permite todos los encabezados

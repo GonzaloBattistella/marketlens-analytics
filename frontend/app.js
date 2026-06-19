@@ -6,6 +6,7 @@ let miGrafico = null;
 let datosHistoricosCompletos = []; // Para guardar los datos del historial originales.
 let tipoVistaActual = 'linea'; // valores posibles: 'linea' y 'velas'.
 let misfavoritosGlobal = []; // Variable global, donde se almacenan los favortios del usuario.
+let datosMercadoGlobal = []; // Guardará el listado completo de activos con sus precios en tiempo real.
 
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
@@ -110,9 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Disparo inicial para poblar la Watchlist con datos reales de la base de datos.
-    cargarWatchlist();
-
     // CONFIGURACIÓN DE LOS EVENTOS DE LA WATCHLIST.
     const btnAbrirWatchlist = document.getElementById('btn-abrir-watchlist');
     const btnCerrarWatchlist = document.getElementById('btn-cerrar-watchlist');
@@ -151,6 +149,9 @@ function cargarIndicadores() {
             return response.json(); // Convertimos la respuesta a un objeto/array de JS
         })
         .then(activos => {
+            // Guardamos la foto del mercado en timepo real de forma global.
+            datosMercadoGlobal = activos;
+
             // Limpiamos la tabla por si tenía algo adentro
             tablaBody.innerHTML = "";
 
@@ -197,8 +198,9 @@ function cargarIndicadores() {
                     <td class="p-4 text-right text-gray-400">${capMercadoFormateada}</td>
                     <td class="pl-6 pr-4 py-4 flex flex-row items-center justify-end gap-3 whitespace-nowrap">
                         
-                        <button onclick="alternarFavorito('${activo.ticker}', ${esFavorito})" 
-                                class="${claseEstrella} p-1.5 rounded-lg hover:bg-gray-700 transition-colors" 
+                        <button data-ticker="${activo.ticker}"
+                                onclick="alternarFavorito('${activo.ticker}', ${esFavorito})" 
+                                class="btn-estrella-ticker ${claseEstrella} p-1.5 rounded-lg hover:bg-gray-700 transition-colors" 
                                 title="${esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="${rellenoEstrella}" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -221,6 +223,9 @@ function cargarIndicadores() {
                 // Inyectamos la fila adentro del cuerpo de la tabla
                 tablaBody.appendChild(fila);
             });
+
+            // llamo a la funcion encargada de cargar la watchlist con sus datos.
+            cargarWatchlist();
         })
         .catch(error => {
             console.error("Hubo un problema con la petición Fetch:", error);
@@ -1086,8 +1091,10 @@ function cargarWatchlist() {
         // Le paso los datos reales a la función que renderiza las tarjetas de los tickers.
         UI_renderizarWatchlist(listaTickers); 
 
-        // Con los datos confirmados, mandamos a dibujar el tablero principal.
-        cargarIndicadores();
+        // Espero 50ms a que el DOM de cargarIndicadores esté listo.
+        setTimeout(() => {
+            UI_sincronizarEstrellasTabla(listaTickers);
+        }, 50);
     })
     .catch(error => {
         console.error("Error al cargar la Watchlist:", error);
@@ -1105,7 +1112,16 @@ function alternarFavorito(ticker, esFavorito) {
     const token = localStorage.getItem("token");
 
     if (!token) {
-        alert("Debes iniciar sesión para administrar tus favoritos.");
+        // Si no está logueado, tiramos un alerta con SweetAlert2.
+        Swal.fire({
+            title: '¡Atención!',
+            text: 'Debes iniciar sesión para administrar tus activos favoritos.',
+            icon: 'warning',
+            confirmButtonColor: '#3085d6', // Ajustá este color al de tu diseño (ej: el azul de Tailwind)
+            confirmButtonText: 'Entendido',
+            background: '#1e293b', // Si usás modo oscuro (slate-800), si no, sacá esta línea
+            color: '#fff'          // Texto blanco para modo oscuro, si no, sacá esta línea
+        });
         return;
     }
 
@@ -1133,11 +1149,58 @@ function alternarFavorito(ticker, esFavorito) {
     })
     .then(data => {
         console.log("¡ÉXITO! Backend respondió:", data);
+
+        // Disparo las alertas visuales (toast) segun la acción.
+        if (metodo === "POST") {
+            mostrarToast(`¡${ticker} agregado a tus favoritos!`, 'success');
+        } else {
+            mostrarToast(`¡${ticker} eliminado de tus favoritos!`, 'info');
+        }
         
         // Actualizamos la interfaz en tiempo real
         cargarWatchlist();   // Recarga la barra lateral con el nuevo favorito.
     })
     .catch(error => {
         console.error("Error en alternarFavorito:", error);
+        mostrarToast("Hubo un problema al actualizar los favoritos.", "error");
     });
+}
+
+// FUNCION REUTILIZABLE QUE FABRICA LOS CARTELITOS (TOAST) DINAMICOS USANDO TAILWIND CSS.
+/**
+ * Muestra una notificación flotante estilo Toast que se auto-destruye.
+ * @param {string} mensaje - Texto a mostrar.
+ * @param {'success' | 'info' | 'error'} tipo - Tipo de alerta para el color.
+ */
+function mostrarToast(mensaje, tipo = 'success') {
+    const contenedor = document.getElementById("contenedor-notificaciones");
+    if (!contenedor) return;
+
+    const toast = document.createElement("div");
+
+    // Configuración de colores con Tailwind
+    let clasesColor = "bg-emerald-600 text-white"; // Exito (Verde).
+    if (tipo === 'info') clasesColor = "bg-blue-600 text-white"; // Info/eliminado Azul.
+    if (tipo === 'error') clasesColor = "bg-rose-600 text-white"; // Error rojo.
+
+    // Estilo de la tarjeta flotante con animaciones sutiles.
+    toast.className = `${clasesColor} px-4 py-3 rounded-xl shadow-2xl font-medium text-sm flex items-center gap-3 transition-all duration-300 transform translate-y-2 opacity-0`;
+
+    // Iconos segun la acción.
+    const icono = tipo === 'success' ? '⭐' : tipo === 'info' ? '🗑️' : '❌';
+    toast.innerHTML = `<span>${icono}</span><span>${mensaje}</span>`;
+
+    // Agregamos el toast al contenedor principal.
+    contenedor.appendChild(toast);
+
+    // Truco para la animacion de entrada (faide-in + slide-up) se note suave.
+    setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+    }, 50);
+
+    // Auto-destrucción a los 3 segundos.
+    setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2'); // Animación de salida hacia arriba
+        setTimeout(() => toast.remove(), 300); // Lo borro fisicamente del DOM. 
+    }, 3000);
 }

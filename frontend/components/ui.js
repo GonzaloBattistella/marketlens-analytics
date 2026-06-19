@@ -163,9 +163,10 @@ function UI_renderizarWatchlist(listaFavoritos) {
     // CASO VACIO: Si el usuario no tiene favoritos todavia.
     if (listaFavoritos.length === 0) {
         contenedor.innerHTML = `
-            <div class="text-center py-12 text-gray-500 text-sm">
-                <p class="font-medium">Tu watchlist está vacía</p>
-                <p class="text-xs mt-1 text-gray-600">Tocá la estrella de cualquier activo en el tablero para seguirlo de cerca.</p>
+            <div class="text-center py-16 px-4 text-gray-500">
+                <div class="text-4xl mb-3 opacity-40">⭐</div>
+                <p class="font-semibold text-gray-400 text-sm">Tu watchlist está vacía</p>
+                <p class="text-xs mt-2 text-gray-600 max-w-[200px] mx-auto">Tocá la estrella de cualquier activo en el tablero para seguirlo de cerca.</p>
             </div>
         `;
         return;
@@ -173,26 +174,70 @@ function UI_renderizarWatchlist(listaFavoritos) {
 
     // CASO CON DATOS: Recorremos el array y creamos las tarjetas dinamicamente.
     listaFavoritos.forEach(ticker => {
+        // BUSCAMOS LOS DATOS EXTENDIDOS DEL ACTIVO EN LA VARIABLE GLOBAL.
+        const infoActivo = datosMercadoGlobal.find(item => item.ticker === ticker) || null;
+
+        // Valores por defecto por si el backend todavia no trajo info de esté activo.
+        const nombreEmpresa = infoActivo ? infoActivo.nombre : "Activo en seguimiento";
+        const precioActual = infoActivo ? parseFloat(infoActivo.precio_actual || infoActivo.precio) : null;
+        const variacion = infoActivo ? parseFloat(infoActivo.variacion_porcentual) : null;
+        const volumen = infoActivo ? parseFloat(infoActivo.volumen) : null;
+
+        // Determinamos el color de la variación
+        const esPositivo = variacion >=0;
+        const colorTextoPorcentaje = esPositivo ? "text-emerald-400" : "text-rose-400";
+        const colorBgPorcentaje = esPositivo ? "bg-emerald-500/10" : "bg-rose-500/10";
+        const signo = esPositivo ? "+" : "";
+        
+        // Formateador para el volumen (EJ: 1500000 -> 1.5M).
+        let volumenFormateado = "0";
+        if(volumen) {
+            volumenFormateado = volumen >= 1e6
+                ? `${(volumen / 1e6).toFixed(1)}M`
+                : volumen >= 1e3
+                    ? `${(volumen / 1e3).toFixed(1)}K`
+                    : volumen.toString();
+        }
+
         // Creamos el div contenedor para la tarjeta.
         const tarjeta = document.createElement('div');
 
-        tarjeta.className = "bg-gray-850 p-3 rounded-xl border border-gray-800 flex justify-between items-center hover:border-amber-500/40 transition-all cursor-pointer group";
-
+        tarjeta.className = tarjeta.className = "bg-gradient-to-br from-gray-900 to-gray-850 p-4 rounded-xl border border-gray-800 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-300 cursor-pointer group relative overflow-hidden select-none flex flex-col gap-2.5";
         // Seteamos un atributo de datos para identificar el ticker facilmente.
         tarjeta.setAttribute('data-ticker', ticker);
 
         // Estructura interna de la tarjeta (Ticker a la izq, tacho de la basura a la der).
         tarjeta.innerHTML = `
-            <div class="flex flex-col">
-                <span class="text-sm font-bold text-white tracking-wider group-hover:text-amber-400 transition-colors">${ticker}</span>
-                <span class="text-xs text-gray-500">Activo en seguimiento</span>
+            <div class="absolute left-0 top-0 h-full w-1 bg-amber-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+
+            <div class="flex justify-between items-center w-full">
+                <span class="text-base font-black text-white tracking-wider group-hover:text-amber-400 transition-colors duration-300 uppercase">${ticker}</span>
+                
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold px-2 py-0.5 rounded ${colorBgPorcentaje} ${colorTextoPorcentaje} border border-current/10 min-w-[65px] text-center">
+                        ${signo}${variacion.toFixed(2)}%
+                    </span>
+                    
+                    <button onclick="alternarFavorito('${ticker}', true)" 
+                            title="Quitar de Favoritos" 
+                            class="btn-eliminar-favorito text-gray-500 hover:text-rose-500 p-1.5 rounded-lg hover:bg-gray-800 transition-colors duration-200 z-10 ml-1 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
             </div>
             
-            <button onclick="alternarFavorito('${ticker}', true)" title="Quitar de Favoritos" class="btn-eliminar-favorito text-gray-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-gray-800 transition-colors" title="Eliminar de mi lista">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-            </button>
+            <div class="flex justify-between items-end w-full mt-0.5 border-t border-gray-800/50 pt-2">
+                <span class="text-[11px] font-medium text-gray-400 truncate max-w-[55%] tracking-wide" title="${nombreEmpresa}">
+                    ${nombreEmpresa}
+                </span>
+                
+                <div class="text-right flex flex-col justify-end">
+                    <span class="text-sm font-bold text-slate-100 tracking-tight">$${precioActual ? precioActual.toFixed(2) : '0.00'}</span>
+                    <span class="text-[10px] text-gray-500 font-medium tracking-normal mt-0.5">Vol: ${volumenFormateado}</span>
+                </div>
+            </div>
         `;
 
         // EVENTO CLICK EN LA TARJETA: Carga el historial en el gráfico central.
@@ -209,5 +254,41 @@ function UI_renderizarWatchlist(listaFavoritos) {
 
         // Inyectamos la tarjeta armada en el contenedor principal.
         contenedor.appendChild(tarjeta);
+    });
+}
+
+
+/**
+ * Sincroniza visualmente las estrellas de la tabla principal de indicadores con los favoritos reales.
+ * @param {string[]} listaFavoritos - Array con los tickers favoritos actuales.
+ */
+function UI_sincronizarEstrellasTabla(listaFavoritos) {
+    // Buscamos todas las estrellas dentro de la tabla principal.
+    const botonesEstrella = document.querySelectorAll('.btn-estrella-ticker');
+
+    botonesEstrella.forEach(boton => {
+        const ticker = boton.getAttribute('data-ticker');
+        if(!ticker) return;
+
+        const svg = boton.querySelector('svg');
+        const yaEsFavorito = listaFavoritos.includes(ticker);
+
+        if (yaEsFavorito) {
+            // Pintamos el SVG (Amarillo/Oro)
+            if (svg) svg.setAttribute('fill', 'amber-400');
+            boton.className = "btn-estrella-ticker text-amber-400 p-1.5 rounded-lg hover:bg-gray-700 transition-colors";
+            boton.setAttribute('title', 'Quitar de Favoritos');
+
+            // Correcion critica: Cambiamos el onclick para que mande true (para eliminar si se toca).
+            boton.setAttribute('onclick', `alternarFavorito('${ticker}', true)`);
+        } else {
+            // Despintamos el SVG.
+            if (svg) svg.setAttribute('fill', 'none');
+            boton.className = "btn-estrella-ticker text-gray-400 p-1.5 rounded-lg hover:bg-gray-700 transition-colors";
+            boton.setAttribute('title', 'Agregar a favoritos');
+            
+            // Cambiamos el onclick para que mande false (para agregar)
+            boton.setAttribute('onclick', `alternarFavorito('${ticker}', false)`);
+        }
     });
 }

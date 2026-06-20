@@ -141,7 +141,7 @@ function cargarIndicadores() {
     const tablaBody = document.getElementById("tabla-indicadores-body");
 
     // Le pegamos al endpoint de lectura rápida que creamos hace un rato
-    fetch(`${API_URL}/db/indicadores`)
+    fetchAutenticado(`${API_URL}/db/indicadores`)
         .then(response => {
             if (!response.ok) {
                 throw new Error("Error al conectar con el backend");
@@ -264,7 +264,7 @@ buscadorForm.addEventListener("submit", (e) => {
     botonSubmit.classList.add("opacity-50", "cursor-not-allowed");
 
     // Le pegamos al endpoint del Backend que va a Yahoo Finance y guarda en Postgres
-    fetch(`${API_URL}/indicadores/${ticker}`)
+    fetchAutenticado(`${API_URL}/indicadores/${ticker}`)
         .then(response => {
             if (!response.ok) {
                 // Si el backend devuelve un 404 o 500, asumimos que el ticker no existe o falló la API
@@ -320,7 +320,7 @@ function verHistorial(ticker) {
     cargarNoticias(ticker);
 
     // Le pegamos a tu endpoint de lectura rápida de la base de datos
-    fetch(`${API_URL}/db/historial/${ticker}`)
+    fetchAutenticado(`${API_URL}/db/historial/${ticker}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error("No hay historial guardado para este activo.");
@@ -608,7 +608,7 @@ if (btnRefrescar) {
         btnRefrescar.innerHTML = "🔄 Actualizando datos...";
 
         // 2. Le pegamos al backend inteligente que creamos recién
-        fetch(`${API_URL}/db/refrescar`, { method: "POST" })
+        fetchAutenticado(`${API_URL}/db/refrescar`, { method: "POST" })
             .then(response => {
                 if (!response.ok) throw new Error("Error al refrescar los datos del servidor.");
                 return response.json();
@@ -708,7 +708,7 @@ function eliminarActivo(ticker) {
         console.log(`🗑️ Eliminando de forma confirmada: ${ticker}`);
 
         // Hacemos el fetch que ya teníamos programado
-        fetch(`${API_URL}/db/indicadores/${ticker}`, { method: "DELETE" })
+        fetchAutenticado(`${API_URL}/db/indicadores/${ticker}`, { method: "DELETE"})
             .then(response => {
                 if (!response.ok) throw new Error("Error al eliminar del servidor.");
                 return response.json();
@@ -817,7 +817,7 @@ async function cargarNoticias(ticker) {
 
     try {
         // Le pegamos a nuestro endpoint del backend.
-        const respuesta = await fetch(`http://127.0.0.1:8000/api/noticias/${ticker}`);
+        const respuesta = await fetchAutenticado(`http://127.0.0.1:8000/api/noticias/${ticker}`);
 
         if (!respuesta.ok) {
             throw new Error("No se pudieron recuperar las noticias.");
@@ -907,7 +907,6 @@ async function cargarNoticias(ticker) {
         `;
     }
 }
-
 
 // ==========================================================================
 //          INTEGRACIÓN CON EL REPORTE ESTRUCTURAL DE IA (GEMINI 2.5)
@@ -1069,36 +1068,30 @@ function cargarWatchlist() {
     }
 
     // Le pegamos al endpoint real de favoritos.
-    fetch(`${API_URL}/favorites`, {
-        method: "GET",
-        headers: {
-            "Authorization": `Bearer ${token}`, // Le pasamos el pase de seguridad al backend.
-            "Content-Type": "application/json"
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error("No se pudieron recuperar los favoritos del servidor.");
-        }
-        return response.json(); // El backend devuelve un array de string.
-    })
-    .then(listaTickers => {
-        console.log("Watchlist cargada desde Postgres:", listaTickers);
+    fetchAutenticado(`${API_URL}/favorites`, {method: "GET"})
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("No se pudieron recuperar los favoritos del servidor.");
+            }
+            return response.json(); // El backend devuelve un array de string.
+        })
+        .then(listaTickers => {
+            console.log("Watchlist cargada desde Postgres:", listaTickers);
 
-        // Guardamos los tickers en la variable global.
-        misfavoritosGlobal = listaTickers;
+            // Guardamos los tickers en la variable global.
+            misfavoritosGlobal = listaTickers;
 
-        // Le paso los datos reales a la función que renderiza las tarjetas de los tickers.
-        UI_renderizarWatchlist(listaTickers); 
+            // Le paso los datos reales a la función que renderiza las tarjetas de los tickers.
+            UI_renderizarWatchlist(listaTickers); 
 
-        // Espero 50ms a que el DOM de cargarIndicadores esté listo.
-        setTimeout(() => {
-            UI_sincronizarEstrellasTabla(listaTickers);
-        }, 50);
-    })
-    .catch(error => {
-        console.error("Error al cargar la Watchlist:", error);
-    });
+            // Espero 50ms a que el DOM de cargarIndicadores esté listo.
+            setTimeout(() => {
+                UI_sincronizarEstrellasTabla(listaTickers);
+            }, 50);
+        })
+        .catch(error => {
+            console.error("Error al cargar la Watchlist:", error);
+        });
 }
 
 
@@ -1134,13 +1127,7 @@ function alternarFavorito(ticker, esFavorito) {
     console.log(`Enviando petición oficial: ${metodo} -> ${url}`);
 
     // Ejecutamos el Fetch limpio (Sin body, igual que en el GET)
-    fetch(url, {
-        method: metodo,
-        headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        }
-    })
+    fetchAutenticado(url, {method: metodo,})
     .then(response => {
         if (!response.ok) {
             throw new Error(`Error en el servidor: ${response.status}`);
@@ -1203,4 +1190,83 @@ function mostrarToast(mensaje, tipo = 'success') {
         toast.classList.add('opacity-0', '-translate-y-2'); // Animación de salida hacia arriba
         setTimeout(() => toast.remove(), 300); // Lo borro fisicamente del DOM. 
     }, 3000);
+}
+
+/**
+ * Realiza peticiones HTTP incluyendo el token de seguridad y manejando de forma
+ * centralizada los errores de autenticación (401 Expirado/Inválido o 400 Problemas de Token).
+ * @param {string} url - Direccion del endpoint.
+ * @param {Object} opciones - Configuracion nativa del fetch (method, body, etc). 
+ * @returns {Promise<Response>} - La respuesta del servidor si es valida.
+ */
+function fetchAutenticado(url, opciones = {}) {
+    const token = localStorage.getItem("token");
+
+    // Aseguramos los headers base de tipo JSON combinando los existentes.
+    opciones.headers = {
+        "Content-Type": "application/json",
+        ...opciones.headers
+    };
+
+    // Si hay token, lo inyecto de forma limpia
+    if (token) {
+        opciones.headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    return fetch(url, opciones)
+        .then(response => {
+            // 🚨 DETECCIÓN DE SESIÓN EXPIRADA O CORRUPTA (Atajamos 401 y 400 por si las moscas)
+            if (response.status === 401 || response.status === 400) {
+                console.error(`Problema de autenticación (${response.status}). Abriendo Login dinámico...`);
+
+                // Limpio de inmediato el token caducado y los datos del usuario viejo
+                localStorage.removeItem("token");
+                localStorage.removeItem("username");
+                localStorage.removeItem("foto_perfil");
+
+                // Sistema de Alerta Profesional (Plan A)
+                if (typeof Swal !== "undefined") {
+                    Swal.fire({
+                        title: '¡Sesión Expirada!',
+                        text: 'Por razones de seguridad, tu sesión ha terminado. Por favor, iniciá sesión nuevamente.',
+                        icon: 'warning',
+                        confirmButtonText: 'Iniciar Sesión',
+                        confirmButtonColor: '#fbbf24', // Color oro/amber de tu app
+                        timer: 5000,
+                        timerProgressBar: true,
+                        allowOutsideClick: false,
+                        background: '#1f2937',
+                        color: '#ffffff',
+                        customClass: { popup: 'rounded-2xl border border-gray-700' }
+                    }).then(() => {
+                        // Capturo el contenedor flotante del login.
+                        const authContainer = document.getElementById('auth-container');
+
+                        if (authContainer) {
+                            // Le sacamos laclase hidden.
+                            authContainer.classList.remove('hidden');
+
+                            if (typeof mostrarLogin === "function") {
+                                mostrarLogin(authContainer,loginExitoso, irAPantallaRegistro);
+                            } else {
+                                // Plan de respaldo por si 'mmostraLogin' requiere el puente global.
+                                irAPantallaLogin();
+                            };
+                        } else {
+                            console.error("❌ No se encontró 'auth-container' al intentar forzar el login.");
+                        };
+                    });
+                } else {
+                    // Respaldo de emergencia nativo
+                    alert("Tu sesión ha expirado por seguridad. Por favor, iniciá sesión nuevamente.");
+                    irAPantallaLogin();
+                }
+
+                // Corto el flujo tirando una excepción controlada para que no siga ejecutando los .then() de afuera
+                throw new Error(`Sesión inválida (${response.status}).`);
+            }
+
+            // Si todo está bien (200, 201, etc.), pasamos la respuesta limpia.
+            return response;
+        });
 }

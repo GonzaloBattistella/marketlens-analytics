@@ -431,27 +431,46 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const preciosMaximos = datosARenderizar.map(dia => dia.precio_maximo);
     const preciosMinimos = datosARenderizar.map(dia => dia.precio_minimo);
 
-    const maximoAbsoluto = Math.max(...preciosMaximos);
-    const minimoAbsoluto = Math.min(...preciosMinimos);
+
+    // calculo los limites basados en lo que realmente se está dibujando en pantalla.
+    // Si la vista es de linea, las resistencias se basan en el precio de CIERRE para que coincidan.
+    // Si es de velas, usamos los máximos y minimos absolutos de la vela entera.
+    const esVistaLinea = (tipoVistaActual === 'linea');
+
+    const maximoAbsoluto = esVistaLinea ? Math.max(...preciosCierre) : Math.max(...preciosMaximos);
+    const minimoAbsoluto = esVistaLinea ? Math.min(...preciosCierre) : Math.min(...preciosMinimos);
     const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
     const promedioPrecio = sumaCierres / preciosCierre.length;
+
+    // Capturamos el CTX antes para el gradiente.
+    const ctx = document.getElementById('historicoChart').getContext('2d');
+
+    // Creación del Gradiente Premium. (Oro -> Transparente).
+    const gradient = ctx.createLinearGradient(0,0,0,400);
+    gradient.addColorStop(0, 'rgba(251, 191, 36, 0.35)'); // #fbbf24 oro con 35% de opacidad
+    gradient.addColorStop(1, 'rgba(31, 41, 55, 0.0)'); // Totalmente transparente abajo.
 
     // Configuracion dinamica del dataset principal.
     let datasetPrincipal = {};
 
     if (tipoVistaActual === 'linea') {
-        // configuracion clasica de linea azul que ya tenia.
         datasetPrincipal = {
             type: 'line',
             label: 'Precio de Cierre (USD)',
             data: preciosCierre,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-            borderWidth: 3,
-            tension: 0.2,
-            pointBackgroundColor: '#3b82f6',
-            pointRadius: 3,
-            pointHoverRadius: 6,
+            borderColor: '#fbbf24', // Color or utilizado en la app.
+            backgroundColor: gradient, // Inyectamos el gradiente.
+            borderWidth: 2, // Linea fina y estilizada.
+            tension: 0.25, // Curvatura suave y organica.
+            fill: true, // Habilitamos el relleno del gradiente.
+
+            // Oculto los puntos para limpiar la linea. Se encienden al pasar el mouse por encima.
+            pointBackgroundColor: '#fbbf24',
+            pointRadius: 0,
+            pointHitRadius: 15, // Amplia la zona de contacto magnético del punto.
+            pointHoverRadius: 6, // Aparece un punto estetico al pasar el mouse. 
+            pointHoverBorderColor: '#1f2937',
+            pointHoverBorderWidth: 2,
             yAxisID: 'y'
         };
     } else {
@@ -477,7 +496,6 @@ function actualizarGraficoProcesado(datosARenderizar) {
         };
     }
 
-    const ctx = document.getElementById('historicoChart').getContext('2d');
 
     if (miGrafico) {
         miGrafico.destroy();
@@ -499,8 +517,8 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     type: 'bar',
                     label: 'Volumen Diario',
                     data: volumenes,
-                    backgroundColor: 'rgba(156, 163, 175, 0.15)',
-                    hoverBackgroundColor: 'rgba(156, 163, 175, 0.3)',
+                    backgroundColor: 'rgba(156, 163, 175, 0.08)', // Mas sutil para no tapar el gradiente.
+                    hoverBackgroundColor: 'rgba(156, 163, 175, 0.2)',
                     yAxisID: 'yVolumen',
                     barThickness: 'flex'
                 }
@@ -509,7 +527,17 @@ function actualizarGraficoProcesado(datosARenderizar) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+
+            // Configuracion de interaccion magnetica estilo TradingView.
+            interaction: {
+                mode: 'index', // Captura el indice del exe X (Enciende el punto de la linea automaticamente).
+                intersect: false // No requiere estar exactamente encima del punto para activarse.
+            },
+
             plugins: {
+                enabled: true,
+                mode: 'index',
+                intersect: false,
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -524,7 +552,9 @@ function actualizarGraficoProcesado(datosARenderizar) {
                                     `📊 Vol: ${volumenes[index].toLocaleString()}`
                                 ];
                             }
-                            return `📊 Volumen: ${context.raw.toLocaleString()}`;
+
+                            // Si es el dataSetIndex1 (las barras de columen de fondo), retornamos null, para que no se dupliquen valores.
+                            return null;
                         }
                     }
                 },
@@ -565,12 +595,19 @@ function actualizarGraficoProcesado(datosARenderizar) {
                         color: '#9ca3af',
                         callback: function (value) { return '$' + value.toFixed(2); }
                     },
-                    // Le damos un margen inteligente de holgura por encima y por debajo
-                    // Le restamos un 5% al mínimo absoluto para que no toque el piso
-                    min: Math.floor(minimoAbsoluto * 0.95),
-                    // Le sumamos un 5% al máximo absoluto para que no toque el techo
-                    max: Math.ceil(maximoAbsoluto * 1.05)
+                    min: Number((minimoAbsoluto * 0.98).toFixed(2)),
+                    max: Number((maximoAbsoluto * 1.02).toFixed(2))
                 },
+                
+                // Aseguramos el eje invisible de volumen para que no rompa.
+                yVolumen: {
+                    type: 'linear',
+                    display: false,
+                    position: 'right',
+                    grid: {drawOnChartArea: false},
+                    min: 0,
+                    max: Math.max(...volumenes) * 4
+                }
             }
         }
     });

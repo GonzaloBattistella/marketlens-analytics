@@ -7,6 +7,8 @@ let datosHistoricosCompletos = []; // Para guardar los datos del historial origi
 let tipoVistaActual = 'linea'; // valores posibles: 'linea' y 'velas'.
 let misfavoritosGlobal = []; // Variable global, donde se almacenan los favortios del usuario.
 let datosMercadoGlobal = []; // Guardará el listado completo de activos con sus precios en tiempo real.
+let unidadTiempoActual = 'dias'; // Puede ser 'dias', 'meses', 'max'.
+let cantidadTiempoActual = 30; // El valor numerico actual del slider activo.
 
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
@@ -331,18 +333,39 @@ function verHistorial(ticker) {
             // ==========================================
             //          PROCESAMIENTO Y CÁLCULOS
             // ==========================================
-            datosHistorialCompletos = datosHistorial; // Me guardo los datos de los 30 dias.
+            datosHistoricosCompletos = datosHistorial; // Me guardo los datos del historial que vinieron de la DB.
 
-
-            // Reseteamos el slider a 30, cada vez que se abre un activo nuevo.
-            const slider = document.getElementById("range-dias");
-            if (slider) {
-                slider.value = 30;
-                document.getElementById("valor-dias").innerText = 30;
+            // RESETEO INTELIGENTE DE CONTROLES AL CAMBIAR DE ACTIVO
+            const sliderDias = document.getElementById("range-dias");
+            if (sliderDias) {
+                sliderDias.value = 30;
+                const txtDias = document.getElementById("valor-dias");
+                if (txtDias) txtDias.innerText = 30;
+            }
+            
+            const sliderMeses = document.getElementById("range-meses");
+            if (sliderMeses) {
+                sliderMeses.value = 2;
+                const txtMeses = document.getElementById("valor-meses");
+                if (txtMeses) txtMeses.innerText = 2;
             }
 
-            // Llamo a funcion interna que se encarga de procesar y dibujar.
-            actualizarGraficoProcesado(datosHistorialCompletos);
+            // Forzamos que visualmente el sistema regrese a la unidad "Días" predeterminada
+            unidadTiempoActual = 'dias';
+            const btnDias = document.getElementById('btn-unidad-dias');
+            const contDias = document.getElementById('contenedor-slider-dias');
+            const contMeses = document.getElementById('contenedor-slider-meses');
+            
+            if (btnDias && contDias && contMeses) {
+                document.getElementById('btn-unidad-meses').className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
+                document.getElementById('btn-unidad-max').className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
+                btnDias.className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all bg-blue-500 text-white shadow-md";
+                contDias.classList.remove('hidden');
+                contMeses.classList.add('hidden');
+            }
+
+            // Llamo a función interna que se encarga de procesar y dibujar el estado inicial (30 días).
+            actualizarGraficoProcesado(datosHistoricosCompletos.slice(-30));
 
             // Auto-scrollear suavemente hasta la sección del gráfico
             seccionGrafico.scrollIntoView({ behavior: 'smooth' });
@@ -402,6 +425,127 @@ function verHistorial(ticker) {
                 }
             });
         });
+}
+
+/**
+ * Alterna visualmente entre los sliders de dias, meses o vista maxima.
+ * Verificando si el activo tiene suficientes datos historicos.
+ */
+function cambiarUnidadTiempo(unidad) {
+    unidadTiempoActual = unidad; // Guardamos el estado
+
+    // Reseteamos valores por defecto de los sliders al cambiar de pestaña
+    if (unidad === 'dias') {
+        cantidadTiempoActual = 30;
+        document.getElementById('range-dias').value = 30;
+        document.getElementById('valor-dias').innerText = 30;
+    } else if (unidad === 'meses') {
+        cantidadTiempoActual = 2;
+        document.getElementById('range-meses').value = 2;
+        document.getElementById('valor-meses').innerText = 2;
+    }
+
+    // Sincronizamos la UI de los botones (encender el activo, apagar el resto)
+    actualizarEstilosBotonesTiempo(unidad);
+
+    // Dibujamos con el nuevo rango
+    renderizarRangoActual();    
+}
+
+/**
+ * Procesa el movimiento de los sliders, calcula el recorte matematico
+ * y actualiza las etiquetas del DOM. 
+ */
+function procesarSliderInteligente(unidad, valor) {
+    // Si el usuario mueve el slider, nos aseguramos que pertenezca a la unidad activa
+    unidadTiempoActual = unidad;
+    cantidadTiempoActual = parseInt(valor);
+
+    // Actualizamos el número en el badge correspondiente
+    if (unidad === 'dias') {
+        document.getElementById('valor-dias').innerText = valor;
+    } else if (unidad === 'meses') {
+        document.getElementById('valor-meses').innerText = valor;
+    }
+
+    // Dibujamos dinámicamente mientras arrastra
+    renderizarRangoActual();
+}
+
+// FUNCIÓN AUXILIAR DE UI: Mantiene los botones en su lugar.
+function actualizarEstilosBotonesTiempo(unidadActiva) {
+    const btnDias = document.getElementById('btn-unidad-dias');
+    const btnMeses = document.getElementById('btn-unidad-meses');
+    const btnMax = document.getElementById('btn-unidad-max');
+
+    const contDias = document.getElementById('contenedor-slider-dias');
+    const contMeses = document.getElementById('contenedor-slider-meses');
+
+    // clase base de Tailwind.
+    const claseInactivo = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
+    const claseActivo = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all bg-blue-500 text-white shadow-md";
+
+    // Resetear estilos de botones
+    btnDias.className = claseInactivo;
+    btnMeses.className = claseInactivo;
+    btnMax.className = claseInactivo;
+
+    // Ocultar sliders por defecto.
+    contDias.classList.add('hidden');
+    contMeses.classList.add('hidden');
+
+    // Activamos lo que corresponda segun el estado real.
+    if (unidadActiva === 'dias') {
+        btnDias.className = claseActivo;
+        contDias.classList.remove('hidden');
+    } else if (unidadActiva === 'meses') {
+        btnMeses.className = claseActivo;
+        contMeses.classList.remove('hidden');
+    } else if (unidadActiva === 'max') {
+        btnMax.className = claseActivo;
+    }
+}
+
+// ======================================================================
+//    FUNCIÓN AUXILIAR: RENDERIZAR RANGO ACTUAL (Evita duplicar código)
+// ======================================================================
+function renderizarRangoActual() {
+    if (!datosHistoricosCompletos || datosHistoricosCompletos.length === 0) return;
+
+    let datosFiltrados = [];
+    const totalDiasDisponibles = datosHistoricosCompletos.length;
+
+    if (unidadTiempoActual === 'dias') {
+        // Validacion por si pide mas dias de los que existen en total.
+        if (cantidadTiempoActual > totalDiasDisponibles) {
+            mostrarToast(`⚠️ Este activo solo cuenta con ${totalDiasDisponibles} días de historial.`, 'info');
+            datosFiltrados = datosHistoricosCompletos;    
+        } else {
+            // Cortamos los ultimos X dias.
+            datosFiltrados = datosHistoricosCompletos.slice(-cantidadTiempoActual);
+        }
+    } 
+    else if (unidadTiempoActual === 'meses') {
+        // 1 mes de bolsa, tiene aprox 22 dias habiles.
+        const diasRequeridos = cantidadTiempoActual * 22
+
+        if (diasRequeridos > totalDiasDisponibles) {
+            mostrarToast(`❌ Historial insuficiente para calcular ${cantidadTiempoActual} meses.`, 'warning');
+
+            // Hacemos que la UI vuelva suavemente a 'dias' para que no queda la pantalla rota. 
+            setTimeout(() => cambiarUnidadTiempo('dias'), 300);
+            return; // Frenamos el renderizado.
+        }
+
+        datosFiltrados = datosHistoricosCompletos.slice(-diasRequeridos);   
+    }
+    else if (unidadTiempoActual === 'max') {
+        // Muestra los 5 años completos sin recortar.
+        datosFiltrados = datosHistoricosCompletos;
+    }
+
+    // Llamado a la funcion que se encarga de destruir el gráfico viejo y renderizar nuevamente el grafico actualizado.
+    actualizarGraficoProcesado(datosFiltrados);
 }
 
 // FUNCION Auxiliar: Actualiza el grafico, cuando se cambia el rango de dias en el grafico.
@@ -613,27 +757,6 @@ function actualizarGraficoProcesado(datosARenderizar) {
     });
 }
 
-// FUNCION Auxiliar:Obtiene el numero de dias, cada vez que se modifica el valor del selector.
-function cambiarRangoDias(cantidadDias) {
-    // Convertimos a numero el valor del slider.
-    const dias = parseInt(cantidadDias);
-
-    //Actualizamos el texto en el HTML, para que el usuario vea que numero eligió.
-    document.getElementById("valor-dias").innerText = dias;
-
-    if (!datosHistorialCompletos || datosHistorialCompletos.length === 0) {
-        console.warn("No hay datos historicos cargados para recortar.");
-        return;
-    }
-
-    // Cortamos el array original, para quedarnos con los ultimos dias.
-    // El slice con numero negativo corta desde el final hacia atras. ?
-    const datosRecortados = datosHistorialCompletos.slice(-dias);
-
-    // Volvemos a dibujar el grafico con el recorte. 
-    actualizarGraficoProcesado(datosRecortados);
-}
-
 // FUNCIÓN 4: Refrescar toda la DB (Indicadores + Historiales) con Cooldown de seguridad
 const btnRefrescar = document.getElementById("btn-refrescar");
 
@@ -816,24 +939,17 @@ function cambiarTipoVista(nuevaVista) {
         btnLinea.className = "bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors";
         // Velas Inactivo (Fondo oscuro, texto gris)
         btnVelas.className = "text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-transparent";
+        tipoVistaActual = 'linea'; 
     } else {
         // Velas Activo (Azul con texto blanco)
         btnVelas.className = "bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors";
         // Línea Inactivo (Fondo oscuro, texto gris)
         btnLinea.className = "text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-transparent";
+        tipoVistaActual = 'velas';
     }
 
-    // Capturamos cuantos dias tiene seleccionados el slider actualmente.
-    const slider = document.getElementById("range-dias");
-    const cantidadDias = slider ? parseInt(slider.value) : 30;
-
-    // Cortamos el array con esa cantidad exacta de dias.
-    const datosRecortados = datosHistorialCompletos.slice(-cantidadDias);
-
-    // Volvemos a renderizar el grafico con los datos actualizados desde cero.
-    actualizarGraficoProcesado(datosRecortados);
+    renderizarRangoActual();
 }
-
 
 // FUNCION 6: Funcion que va a cargar las noticias, es decir, va a conectar el backend, con el frontend, para que se puedan visualizar las noticias.
 async function cargarNoticias(ticker) {

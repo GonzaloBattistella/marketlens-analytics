@@ -103,8 +103,8 @@ def obtener_historial_precios(ticker: str, db: Session = Depends(get_db)):
     ticker = ticker.upper()
     asset = yf.Ticker(ticker)
     
-    # Traemos el historial de 1 mes (pueden ser unos 20-22 días hábiles de mercado)
-    hist = asset.history(period="1mo")
+    # Traemos el historial de 5 años.
+    hist = asset.history(period="5y")
 
     # Borro cualquier fila donde el precio de cierre sea NaN. Para que no rompa la logica del grafico.
     hist = hist.dropna(subset=['Close'])
@@ -192,8 +192,12 @@ def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
         try:
             # Buscamos el historial en yfinance
             stock = yf.Ticker(ticker)
-            df = stock.history(period="30d")
+            df = stock.history(period="5y") # Me llevo todo el historial en la DB para el activo (5 Años).
             
+            # Limpieza de seguridad para evitar que colapse por filas nulas.
+            df = df.dropna(subset=['Close'])
+
+
             if df.empty:
                 raise HTTPException(status_code=404, detail=f"No se encontraron datos en Yahoo para {ticker}")
                 
@@ -257,8 +261,8 @@ def refrescar_todos_los_indicadores_e_historiales(db: Session = Depends(get_db))
             # Borramos el historial viejo de este activo en Postgres
             db.query(models.PriceHistory).filter(models.PriceHistory.ticker == activo.ticker).delete()
             
-            # Descargamos los 30 días más recientes de internet
-            df_historial = stock.history(period="30d")
+            # Descargamos los 5 años más recientes de internet
+            df_historial = stock.history(period="5y")
             nuevas_filas = []
             for indice, fila in df_historial.iterrows():
                 nuevo_registro = models.PriceHistory(

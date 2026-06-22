@@ -556,6 +556,29 @@ function renderizarRangoActual() {
     actualizarGraficoProcesado(datosFiltrados);
 }
 
+/**
+ * Actualiza el bloque OHLC Estático en la cabecera del gráfico.
+ * con los valores de la ultima jornada disponible. 
+ */
+function actualizarPanelOHLCEstatico(aperturas, maximos, minimos, cierres) {
+    const ohlcOpen = document.getElementById('ohlc-open');
+    const ohlcHigh = document.getElementById('ohlc-high');
+    const ohlcLow = document.getElementById('ohlc-low');
+    const ohlcClose = document.getElementById('ohlc-close');
+
+    // Validamos que los arrays existan y tengan datos para evitar un "undefined".
+    if (aperturas && aperturas.length > 0) {
+        // En los arrays historicos, el ultimo indice siempre representa la jornada mas reciente.
+        const ultimoIndex = aperturas.length - 1;
+        
+        // Inyectamos los valores formateados a 2 decimales.
+        if(ohlcOpen) ohlcOpen.innerText = `$${aperturas[ultimoIndex].toFixed(2)}`; 
+        if(ohlcHigh) ohlcHigh.innerText = `$${maximos[ultimoIndex].toFixed(2)}`; 
+        if(ohlcLow) ohlcLow.innerText = `$${minimos[ultimoIndex].toFixed(2)}`; 
+        if(ohlcClose) ohlcClose.innerText = `$${cierres[ultimoIndex].toFixed(2)}`; 
+    }
+}
+
 // FUNCION Auxiliar: Actualiza el grafico, cuando se cambia el rango de dias en el grafico.
 function actualizarGraficoProcesado(datosARenderizar) {
     // =========================================================================
@@ -593,6 +616,9 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const minimoAbsoluto = esVistaLinea ? Math.min(...preciosCierre) : Math.min(...preciosMinimos);
     const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
     const promedioPrecio = sumaCierres / preciosCierre.length;
+
+    // Actualizo los valores del Panel OHLC dentro de la sección del Gráfico.
+    actualizarPanelOHLCEstatico(preciosApertura,preciosMaximos,preciosMinimos,preciosCierre);
 
     // Capturamos el CTX antes para el gradiente.
     const ctx = document.getElementById('historicoChart').getContext('2d');

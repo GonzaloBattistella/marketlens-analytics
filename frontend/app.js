@@ -10,6 +10,7 @@ let datosMercadoGlobal = []; // Guardará el listado completo de activos con sus
 let unidadTiempoActual = 'dias'; // Puede ser 'dias', 'meses', 'max'.
 let cantidadTiempoActual = 30; // El valor numerico actual del slider activo.
 let herramientaActiva = 'cruz'; // Estado global de tu barra de herramientas.
+let mostrarSMA20 = false; // Para controlar el estado de llos indicadores. (SMA 2o días).
 
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
@@ -19,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
         Chart.register(window['chartjs-plugin-zoom']);
     } else if (typeof ChartZoom !== 'undefined') {
         Chart.register(ChartZoom);
-    }   
+    }
 
     cargarIndicadores();
 
@@ -42,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Si el usuario ya está logueado, ocultamos el boton de registro para que no moleste.
         if (btnRegistro) btnRegistro.classList.add('hidden');
-    }else{
+    } else {
         // Mostramos los botones de IniciarSesion/Registro.
         UI_restaurarBotonesNavbar();
     }
@@ -350,7 +351,7 @@ function verHistorial(ticker) {
                 const txtDias = document.getElementById("valor-dias");
                 if (txtDias) txtDias.innerText = 30;
             }
-            
+
             const sliderMeses = document.getElementById("range-meses");
             if (sliderMeses) {
                 sliderMeses.value = 2;
@@ -363,7 +364,7 @@ function verHistorial(ticker) {
             const btnDias = document.getElementById('btn-unidad-dias');
             const contDias = document.getElementById('contenedor-slider-dias');
             const contMeses = document.getElementById('contenedor-slider-meses');
-            
+
             if (btnDias && contDias && contMeses) {
                 document.getElementById('btn-unidad-meses').className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
                 document.getElementById('btn-unidad-max').className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
@@ -457,7 +458,7 @@ function cambiarUnidadTiempo(unidad) {
     actualizarEstilosBotonesTiempo(unidad);
 
     // Dibujamos con el nuevo rango
-    renderizarRangoActual();    
+    renderizarRangoActual();
 }
 
 /**
@@ -527,12 +528,12 @@ function renderizarRangoActual() {
         // Validacion por si pide mas dias de los que existen en total.
         if (cantidadTiempoActual > totalDiasDisponibles) {
             mostrarToast(`⚠️ Este activo solo cuenta con ${totalDiasDisponibles} días de historial.`, 'info');
-            datosFiltrados = datosHistoricosCompletos;    
+            datosFiltrados = datosHistoricosCompletos;
         } else {
             // Cortamos los ultimos X dias.
             datosFiltrados = datosHistoricosCompletos.slice(-cantidadTiempoActual);
         }
-    } 
+    }
     else if (unidadTiempoActual === 'meses') {
         // 1 mes de bolsa, tiene aprox 22 dias habiles.
         const diasRequeridos = cantidadTiempoActual * 22
@@ -545,7 +546,7 @@ function renderizarRangoActual() {
             return; // Frenamos el renderizado.
         }
 
-        datosFiltrados = datosHistoricosCompletos.slice(-diasRequeridos);   
+        datosFiltrados = datosHistoricosCompletos.slice(-diasRequeridos);
     }
     else if (unidadTiempoActual === 'max') {
         // Muestra los 5 años completos sin recortar.
@@ -570,35 +571,35 @@ function actualizarPanelOHLCEstatico(aperturas, maximos, minimos, cierres) {
     if (aperturas && aperturas.length > 0) {
         // En los arrays historicos, el ultimo indice siempre representa la jornada mas reciente.
         const ultimoIndex = aperturas.length - 1;
-        
+
         // Inyectamos los valores formateados a 2 decimales.
-        if(ohlcOpen) ohlcOpen.innerText = `$${aperturas[ultimoIndex].toFixed(2)}`; 
-        if(ohlcHigh) ohlcHigh.innerText = `$${maximos[ultimoIndex].toFixed(2)}`; 
-        if(ohlcLow) ohlcLow.innerText = `$${minimos[ultimoIndex].toFixed(2)}`; 
-        if(ohlcClose) ohlcClose.innerText = `$${cierres[ultimoIndex].toFixed(2)}`; 
+        if (ohlcOpen) ohlcOpen.innerText = `$${aperturas[ultimoIndex].toFixed(2)}`;
+        if (ohlcHigh) ohlcHigh.innerText = `$${maximos[ultimoIndex].toFixed(2)}`;
+        if (ohlcLow) ohlcLow.innerText = `$${minimos[ultimoIndex].toFixed(2)}`;
+        if (ohlcClose) ohlcClose.innerText = `$${cierres[ultimoIndex].toFixed(2)}`;
     }
 }
 
-// FUNCION Auxiliar: Actualiza el grafico, cuando se cambia el rango de dias en el grafico.
+
+// =====================================================================================
+//                 RENDERIZACIÓN DEL GRÁFICO DE UN ACTIVO (CON SMA FIJADA)
+// =====================================================================================
 function actualizarGraficoProcesado(datosARenderizar) {
-    // =========================================================================
-    //    LIMPIEZA DEL REPORTE DE IA (Evita mostrar info del activo anterior)
-    // =========================================================================
+    // LIMPIEZA DEL REPORTE DE IA (Evita mostrar info del activo anterior).
     const estadoInicialIA = document.getElementById('ia-estado-inicial');
     const estadoCargaIA = document.getElementById('ia-estado-carga');
     const textoReporteIA = document.getElementById('ia-texto-reporte');
 
-    // Si los elementos existen en pantalla, los reseteamos a su estado de fábrica
     if (estadoInicialIA && estadoCargaIA && textoReporteIA) {
-        estadoInicialIA.classList.remove('hidden'); // Volvemos a mostrar el estado inicial limpio
-        estadoCargaIA.classList.add('hidden'); // Nos aseguramos de ocultar el spinner de carga
-        textoReporteIA.classList.add('hidden'); // Ocultamos el reporte del activo viejo.
-        textoReporteIA.innerHTML = ''; // Vaciamos el HTML viejo por seguridad.
+        estadoInicialIA.classList.remove('hidden');
+        estadoCargaIA.classList.add('hidden');
+        textoReporteIA.classList.add('hidden');
+        textoReporteIA.innerHTML = '';
     }
+    
     // =========================================================================
 
-
-    // Procesamiento de los datos a renderizar.
+    // Procesamiento de los datos a renderizar (Ya recortados por el slider/vista)
     const etiquetasFechas = datosARenderizar.map(dia => dia.fecha);
     const preciosCierre = datosARenderizar.map(dia => dia.precio_cierre);
     const volumenes = datosARenderizar.map(dia => dia.volumen || 0);
@@ -606,10 +607,6 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const preciosMaximos = datosARenderizar.map(dia => dia.precio_maximo);
     const preciosMinimos = datosARenderizar.map(dia => dia.precio_minimo);
 
-
-    // calculo los limites basados en lo que realmente se está dibujando en pantalla.
-    // Si la vista es de linea, las resistencias se basan en el precio de CIERRE para que coincidan.
-    // Si es de velas, usamos los máximos y minimos absolutos de la vela entera.
     const esVistaLinea = (tipoVistaActual === 'linea');
 
     const maximoAbsoluto = esVistaLinea ? Math.max(...preciosCierre) : Math.max(...preciosMaximos);
@@ -617,18 +614,19 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
     const promedioPrecio = sumaCierres / preciosCierre.length;
 
-    // Actualizo los valores del Panel OHLC dentro de la sección del Gráfico.
-    actualizarPanelOHLCEstatico(preciosApertura,preciosMaximos,preciosMinimos,preciosCierre);
+    // Calculamos la SMA de todo el historial con coordenadas de tiempo puras.
+    const datosSMA20 = calcularSMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
 
-    // Capturamos el CTX antes para el gradiente.
+    // Actualizo los valores del Panel OHLC dentro de la sección del Gráfico
+    actualizarPanelOHLCEstatico(preciosApertura, preciosMaximos, preciosMinimos, preciosCierre);
+
     const ctx = document.getElementById('historicoChart').getContext('2d');
 
-    // Creación del Gradiente Premium. (Oro -> Transparente).
-    const gradient = ctx.createLinearGradient(0,0,0,400);
-    gradient.addColorStop(0, 'rgba(251, 191, 36, 0.35)'); // #fbbf24 oro con 35% de opacidad
-    gradient.addColorStop(1, 'rgba(31, 41, 55, 0.0)'); // Totalmente transparente abajo.
+    // Creación del Gradiente Premium (Oro -> Transparente)
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(251, 191, 36, 0.35)');
+    gradient.addColorStop(1, 'rgba(31, 41, 55, 0.0)');
 
-    // Configuracion dinamica del dataset principal.
     let datasetPrincipal = {};
 
     if (tipoVistaActual === 'linea') {
@@ -636,17 +634,15 @@ function actualizarGraficoProcesado(datosARenderizar) {
             type: 'line',
             label: 'Precio de Cierre (USD)',
             data: preciosCierre,
-            borderColor: '#fbbf24', // Color or utilizado en la app.
-            backgroundColor: gradient, // Inyectamos el gradiente.
-            borderWidth: 2, // Linea fina y estilizada.
-            tension: 0.25, // Curvatura suave y organica.
-            fill: true, // Habilitamos el relleno del gradiente.
-
-            // Oculto los puntos para limpiar la linea. Se encienden al pasar el mouse por encima.
+            borderColor: '#fbbf24',
+            backgroundColor: gradient,
+            borderWidth: 2,
+            tension: 0.25,
+            fill: true,
             pointBackgroundColor: '#fbbf24',
             pointRadius: 0,
-            pointHitRadius: 15, // Amplia la zona de contacto magnético del punto.
-            pointHoverRadius: 6, // Aparece un punto estetico al pasar el mouse. 
+            pointHitRadius: 15,
+            pointHoverRadius: 6,
             pointHoverBorderColor: '#1f2937',
             pointHoverBorderWidth: 2,
             yAxisID: 'y'
@@ -656,28 +652,22 @@ function actualizarGraficoProcesado(datosARenderizar) {
         datasetPrincipal = {
             type: 'candlestick',
             label: 'Precios OHLC',
-            // Mapeamos los datos en la estructura especial {x, o, h, l, c} que pide el plugin financiero
             data: datosARenderizar.map(dia => ({
-                x: luxon.DateTime.fromISO(dia.fecha).valueOf(), // Convierte la fecha a timestamp numérico
+                x: luxon.DateTime.fromISO(dia.fecha).valueOf(),
                 o: dia.precio_apertura,
                 h: dia.precio_maximo,
                 l: dia.precio_minimo,
                 c: dia.precio_cierre
             })),
             yAxisID: 'y',
-            // Colores profesionales de trading en Dark Mode:
             color: {
-                up: '#10b981',    // Verde esmeralda para días alcistas (Tailwind emerald-500)
-                down: '#ef4444',  // Rojo para días bajistas (Tailwind red-500)
-                unchanged: '#94a3b8' // Gris si cerró igual
+                up: '#10b981',
+                down: '#ef4444',
+                unchanged: '#94a3b8'
             }
         };
     }
 
-    // ==========================================
-    //      NUEVA CONFIGURACIÓN DEL CHART
-    // ==========================================
-    
     if (miGrafico) {
         miGrafico.destroy();
     }
@@ -686,50 +676,53 @@ function actualizarGraficoProcesado(datosARenderizar) {
         data: {
             labels: etiquetasFechas,
             datasets: [
-                datasetPrincipal, // Inyectamos dinámicamente la Línea o las Velas aquí
+                datasetPrincipal,
                 {
                     type: 'bar',
                     label: 'Volumen Diario',
                     data: volumenes,
-                    backgroundColor: 'rgba(156, 163, 175, 0.08)', // Mas sutil para no tapar el gradiente.
+                    backgroundColor: 'rgba(156, 163, 175, 0.08)',
                     hoverBackgroundColor: 'rgba(156, 163, 175, 0.2)',
                     yAxisID: 'yVolumen',
                     barThickness: 'flex'
-                }
+                },
+
+                // DATASET CONDICIONAL DE LA SMA
+                ...(mostrarSMA20 ? [{
+                    label: 'SMA (20)',
+                    data: datosSMA20,
+                    type: 'line',
+                    borderColor: '#a855f7', // Violeta tecnológico
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.2,
+                    yAxisID: 'y'
+                }] : [])
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-
-            // Control dinamico del cursor (cruz vs Lupa).
             onHover: (event) => {
                 const canvas = event.chart.canvas;
-
-                // Sila variable global 'herramienta activa' es 'lupa', cambia a zoom.
                 if (typeof herramientaActiva !== 'undefined' && herramientaActiva === 'lupa') {
                     canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'></circle><line x1='16' y1='16' x2='22' y2='22'></line></svg>\") 8 8, auto";
-                }
-                else {
+                } else {
                     canvas.style.cursor = 'crosshair';
                 }
             },
-
-            // Configuracion de interaccion magnetica estilo TradingView.
             interaction: {
-                mode: 'index', // Captura el indice del exe X (Enciende el punto de la linea automaticamente).
-                intersect: false // No requiere estar exactamente encima del punto para activarse.
-            },
-
-            plugins: {
-                enabled: true,
                 mode: 'index',
-                intersect: false,
+                intersect: false
+            },
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
                             const index = context.dataIndex;
+                            // Validamos que el dataset al que se le pasa el mouse sea el principal (0)
                             if (context.datasetIndex === 0) {
                                 return [
                                     `🟢 Apertura: $${preciosApertura[index].toFixed(2)}`,
@@ -739,9 +732,17 @@ function actualizarGraficoProcesado(datosARenderizar) {
                                     `📊 Vol: ${volumenes[index].toLocaleString()}`
                                 ];
                             }
+                            // Si el mouse pasa arriba de la línea SMA (dataset 2), mostramos su valor promediado
+                            if (context.dataset && context.dataset.label === 'SMA (20)') {
+                                const puntoActual = context.dataset.data[context.dataIndex];
+                                if (puntoActual !== null && puntoActual !== undefined) {
+                                    // Si es un objeto (vista velas), extraemos .y. Si es un número plano (vista Linea), lo usamos directo.
+                                    const valorLimpio = (typeof puntoActual === 'object') ? puntoActual.y : puntoActual;
+                                    return `SMA (20): $${valorLimpio.toFixed(2)}`;
+                                }
 
-                            // Si es el dataSetIndex1 (las barras de columen de fondo), retornamos null, para que no se dupliquen valores.
-                            return null;
+                                return null;
+                            }
                         }
                     }
                 },
@@ -772,25 +773,17 @@ function actualizarGraficoProcesado(datosARenderizar) {
                             borderColor: 'rgba(59, 130, 246, 0.6)',
                             borderWidth: 1
                         },
-                        wheel: {
-                            enabled: true, // Habilita el zoom con el scroll del mouse.
-                            speed: 0.1
-                        },
+                        wheel: { enabled: true, speed: 0.1 },
                         mode: 'x',
-                        // Esto le asegura al plugin que afecte al eje del tiempo X
                         scales: ['x'],
-                        onZoomStart: function() {
-                            if (typeof herramientaActiva !== 'undefined' && herramientaActiva === 'lupa') {
-                                return true;
-                            }
-                            return false;
+                        onZoomStart: function () {
+                            return (typeof herramientaActiva !== 'undefined' && herramientaActiva === 'lupa');
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    // Para que el plugin financiero de velas dibuje bien, necesita saber que el eje X maneja tiempos
                     type: tipoVistaActual === 'velas' ? 'time' : 'category',
                     time: { unit: 'day' },
                     grid: { display: false },
@@ -808,13 +801,11 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     min: Number((minimoAbsoluto * 0.98).toFixed(2)),
                     max: Number((maximoAbsoluto * 1.02).toFixed(2))
                 },
-                
-                // Aseguramos el eje invisible de volumen para que no rompa.
                 yVolumen: {
                     type: 'linear',
                     display: false,
                     position: 'right',
-                    grid: {drawOnChartArea: false},
+                    grid: { drawOnChartArea: false },
                     min: 0,
                     max: Math.max(...volumenes) * 4
                 }
@@ -865,7 +856,7 @@ if (btnRefrescar) {
             })
             .catch(error => {
                 console.error("Error al refrescar:", error);
-                
+
                 // Alerta con SweetAlert2
                 Swal.fire({
                     title: 'Error de Actualización',
@@ -934,7 +925,7 @@ function eliminarActivo(ticker) {
         console.log(`🗑️ Eliminando de forma confirmada: ${ticker}`);
 
         // Hacemos el fetch que ya teníamos programado
-        fetchAutenticado(`${API_URL}/db/indicadores/${ticker}`, { method: "DELETE"})
+        fetchAutenticado(`${API_URL}/db/indicadores/${ticker}`, { method: "DELETE" })
             .then(response => {
                 if (!response.ok) throw new Error("Error al eliminar del servidor.");
                 return response.json();
@@ -1005,7 +996,7 @@ function cambiarTipoVista(nuevaVista) {
         btnLinea.className = "bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors";
         // Velas Inactivo (Fondo oscuro, texto gris)
         btnVelas.className = "text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-transparent";
-        tipoVistaActual = 'linea'; 
+        tipoVistaActual = 'linea';
     } else {
         // Velas Activo (Azul con texto blanco)
         btnVelas.className = "bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors";
@@ -1287,7 +1278,7 @@ function cargarWatchlist() {
     }
 
     // Le pegamos al endpoint real de favoritos.
-    fetchAutenticado(`${API_URL}/favorites`, {method: "GET"})
+    fetchAutenticado(`${API_URL}/favorites`, { method: "GET" })
         .then(response => {
             if (!response.ok) {
                 throw new Error("No se pudieron recuperar los favoritos del servidor.");
@@ -1301,7 +1292,7 @@ function cargarWatchlist() {
             misfavoritosGlobal = listaTickers;
 
             // Le paso los datos reales a la función que renderiza las tarjetas de los tickers.
-            UI_renderizarWatchlist(listaTickers); 
+            UI_renderizarWatchlist(listaTickers);
 
             // Espero 50ms a que el DOM de cargarIndicadores esté listo.
             setTimeout(() => {
@@ -1339,37 +1330,37 @@ function alternarFavorito(ticker, esFavorito) {
 
     const metodo = esFavorito ? "DELETE" : "POST";
     const accion = esFavorito ? "remove" : "add";
-    
+
     // URL CORRECTA (Validada por Swagger): El ticker viaja en la URL
     const url = `${API_URL}/favorites/${accion}?ticker=${ticker}`;
 
     console.log(`Enviando petición oficial: ${metodo} -> ${url}`);
 
     // Ejecutamos el Fetch limpio (Sin body, igual que en el GET)
-    fetchAutenticado(url, {method: metodo,})
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Error en el servidor: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log("¡ÉXITO! Backend respondió:", data);
+    fetchAutenticado(url, { method: metodo, })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error en el servidor: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("¡ÉXITO! Backend respondió:", data);
 
-        // Disparo las alertas visuales (toast) segun la acción.
-        if (metodo === "POST") {
-            mostrarToast(`¡${ticker} agregado a tus favoritos!`, 'success');
-        } else {
-            mostrarToast(`¡${ticker} eliminado de tus favoritos!`, 'info');
-        }
-        
-        // Actualizamos la interfaz en tiempo real
-        cargarWatchlist();   // Recarga la barra lateral con el nuevo favorito.
-    })
-    .catch(error => {
-        console.error("Error en alternarFavorito:", error);
-        mostrarToast("Hubo un problema al actualizar los favoritos.", "error");
-    });
+            // Disparo las alertas visuales (toast) segun la acción.
+            if (metodo === "POST") {
+                mostrarToast(`¡${ticker} agregado a tus favoritos!`, 'success');
+            } else {
+                mostrarToast(`¡${ticker} eliminado de tus favoritos!`, 'info');
+            }
+
+            // Actualizamos la interfaz en tiempo real
+            cargarWatchlist();   // Recarga la barra lateral con el nuevo favorito.
+        })
+        .catch(error => {
+            console.error("Error en alternarFavorito:", error);
+            mostrarToast("Hubo un problema al actualizar los favoritos.", "error");
+        });
 }
 
 // FUNCION REUTILIZABLE QUE FABRICA LOS CARTELITOS (TOAST) DINAMICOS USANDO TAILWIND CSS.
@@ -1466,7 +1457,7 @@ function fetchAutenticado(url, opciones = {}) {
                             authContainer.classList.remove('hidden');
 
                             if (typeof mostrarLogin === "function") {
-                                mostrarLogin(authContainer,loginExitoso, irAPantallaRegistro);
+                                mostrarLogin(authContainer, loginExitoso, irAPantallaRegistro);
                             } else {
                                 // Plan de respaldo por si 'mmostraLogin' requiere el puente global.
                                 irAPantallaLogin();
@@ -1510,9 +1501,9 @@ function alternarHerramienta(herramienta) {
         // Estilos de boton INACTIVO / DESACTIVADO.
         if (btnLupa) {
             btnLupa.className = "text-slate-400 hover:text-slate-200 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all bg-transparent flex items-center gap-2 hover:bg-slate-700/40";
-            
+
             // Al apagarse la funcion, invita a volver a activarla.
-            btnLupa.title = "Activar Lupa (Zoom)"; 
+            btnLupa.title = "Activar Lupa (Zoom)";
         }
         if (iconoLupa) {
             iconoLupa.className = "w-4 h-4 text-slate-400 pointer-events-none transition-colors duration-200";
@@ -1544,5 +1535,84 @@ function alternarHerramienta(herramienta) {
         } else {
             miGrafico.canvas.style.cursor = 'crosshair';
         }
+    }
+}
+
+/**
+ * Calcula la Media Móvil Simple (SMA) de un array de datos.
+ * @param {Array} datosCompletos - Array con los precios de cierre.
+ * @param {Number} periodo - Cantidad de días para el promedio (ej.20).
+ * @param {String} fechasVisibles - Fechas de los dias en que hubo operaciones.
+ * @param {String} vistaActual - Tipo de vista del Gráfico (ej. 'velas', 'linea').
+ * @returns {Array} Array del mismo largo que 'datosCompletos', con valores de la SMA o null.
+ */
+// FUNCIÓN CALCULAR SMA PROFESIONAL (Filtrado estricto anti-renderizado roto)
+function calcularSMA(datosCompletos, periodo, fechasVisibles, vistaActual) {
+    if (!datosCompletos || datosCompletos.length === 0) return [];
+
+    // 1. Calculamos la SMA para todo el historial (solo guardamos si el valor es numérico y válido)
+    let smaMap = {};
+    for (let i = 0; i < datosCompletos.length; i++) {
+        if (i >= periodo - 1) {
+            let suma = 0;
+            for (let j = 0; j < periodo; j++) {
+                suma += datosCompletos[i - j].precio_cierre;
+            }
+            smaMap[datosCompletos[i].fecha] = Number((suma / periodo).toFixed(2));
+        }
+    }
+
+    // 2. Construimos el array para Chart.js
+    let resultadoFinal = [];
+
+    fechasVisibles.forEach(fecha => {
+        const valorSMA = smaMap[fecha];
+        
+        // Si es nulo o no existe, lo salteamos completamente. 
+        // No le mandamos basura ni 'nulls' al motor de Chart.js.
+        if (valorSMA !== undefined && valorSMA !== null) {
+            if (vistaActual === 'velas') {
+                resultadoFinal.push({
+                    x: new Date(fecha).getTime(), // Timestamp numérico puro y limpio
+                    y: valorSMA
+                });
+            } else {
+                resultadoFinal.push(valorSMA);
+            }
+        } else {
+            // Para la vista de líneas tradicional, si faltan los primeros días, 
+            // sí empujamos 'null' para no desalinear los índices del eje 'category'.
+            if (vistaActual !== 'velas') {
+                resultadoFinal.push(null);
+            }
+        }
+    });
+
+    return resultadoFinal;
+}
+
+
+/**
+ * Enciende o apaga el indicador de la Media Móvil (SMA 20)
+ */
+function toggleSMA20() {
+    const btnSMA = document.getElementById('btn-indicador-sma');
+    if (!btnSMA) return;
+    
+    // Invertimos el estado booleano
+    mostrarSMA20 = !mostrarSMA20;
+
+    if (mostrarSMA20) {
+        // Estilos de botón ACTIVO (Púrpura Premium)
+        btnSMA.className = "bg-purple-500/10 text-purple-400 px-2 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 border border-purple-500/30 shadow-sm shadow-purple-500/5";
+    } else {
+        // Estilos de botón INACTIVO (Slate clásico apagado)
+        btnSMA.className = "text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md text-xs font-semibold transition-all bg-transparent flex items-center gap-1 hover:bg-slate-700/40";
+    }
+
+    // FORZAMOS REDIBUJADO: Para asegurarnos de que limpie o dibuje al instante,
+    // si 'renderizarRangoActual' no responde, llamamos directamente al destructor del gráfico pasándole el estado
+    if (typeof renderizarRangoActual === 'function') {
+        renderizarRangoActual();
     }
 }

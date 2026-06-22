@@ -8,10 +8,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.0/dist/chartjs-adapter-luxon.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.0/dist/chartjs-chart-financial.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.0/dist/chartjs-adapter-luxon.umd.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.0/dist/chartjs-chart-financial.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
@@ -21,49 +25,67 @@
 
     <nav class="bg-gray-800 border-b border-gray-700 p-4 shadow-lg">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-black tracking-wider text-blue-400">🔍 MARKET<span class="text-white">LENS</span></h1>
+            <h1 class="text-2xl font-black tracking-wider text-blue-400">🔍 MARKET<span class="text-white">LENS</span>
+            </h1>
 
-            <div class="flex items-center gap-3"> 
-                <button id="btn-registro" class="text-sm bg-transparent hover:bg-gray-750 text-gray-300 hover:text-white font-medium px-3 py-1.5 rounded-lg border border-gray-600 transition">
+            <div class="flex items-center gap-3">
+                <button id="btn-registro"
+                    class="text-sm bg-transparent hover:bg-gray-750 text-gray-300 hover:text-white font-medium px-3 py-1.5 rounded-lg border border-gray-600 transition">
                     Crear Cuenta
                 </button>
 
-                <button id="btn-sesion" class="text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-1.5 rounded-lg border border-blue-500 transition shadow-md shadow-blue-500/10">
+                <button id="btn-sesion"
+                    class="text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-1.5 rounded-lg border border-blue-500 transition shadow-md shadow-blue-500/10">
                     Iniciar Sesión
                 </button>
 
-                <div id="contenedor-usuario" class="hidden flex items-center gap-3 bg-gray-750 border border-gray-650 px-3 py-1.5 rounded-xl shadow-inner">
-                    <div class="w-7 h-7 rounded-full bg-purple-900/50 border border-purple-500/40 flex items-center justify-center text-sm shadow">
+                <div id="contenedor-usuario"
+                    class="hidden flex items-center gap-3 bg-gray-750 border border-gray-650 px-3 py-1.5 rounded-xl shadow-inner">
+                    <div
+                        class="w-7 h-7 rounded-full bg-purple-900/50 border border-purple-500/40 flex items-center justify-center text-sm shadow">
                         <span id="avatar-usuario">👤</span>
                     </div>
 
                     <span id="navbar-username" class="text-sm text-white font-medium truncate max-w-[100px]"></span>
 
-                    <button id="btn-logout" class="text-gray-400 hover:text-red-400 p-1 rounded-md hover:bg-gray-700/50 transition" title="Cerrar Sesión">
+                    <button id="btn-logout"
+                        class="text-gray-400 hover:text-red-400 p-1 rounded-md hover:bg-gray-700/50 transition"
+                        title="Cerrar Sesión">
                         🚪
                     </button>
 
-                    <button id="btn-abrir-watchlist" class="relative p-2 text-gray-400 hover:text-amber-400 rounded-xl hover:bg-gray-800 transition-all" title="Ver mi Watchlist">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    <button id="btn-abrir-watchlist"
+                        class="relative p-2 text-gray-400 hover:text-amber-400 rounded-xl hover:bg-gray-800 transition-all"
+                        title="Ver mi Watchlist">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                         </svg>
-                        <span id="watchlist-badge" class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full hidden"></span>
+                        <span id="watchlist-badge"
+                            class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full hidden"></span>
                     </button>
                 </div>
 
-                <div id="contenedor-estado" class="flex items-center gap-2 bg-gray-750 border border-gray-650 px-2.5 py-1.5 rounded-lg shadow-inner cursor-help" title="Verificando estado del servidor...">
-                    <span id="led-estado" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse ring-2 ring-gray-500/20"></span>
+                <div id="contenedor-estado"
+                    class="flex items-center gap-2 bg-gray-750 border border-gray-650 px-2.5 py-1.5 rounded-lg shadow-inner cursor-help"
+                    title="Verificando estado del servidor...">
+                    <span id="led-estado"
+                        class="w-2 h-2 rounded-full bg-gray-500 animate-pulse ring-2 ring-gray-500/20"></span>
                     <span id="texto-estado" class="text-xs text-gray-400 font-medium hidden sm:inline">Servidor</span>
                 </div>
             </div>
         </div>
     </nav>
 
-    <div id="watchlist-sidebar" class="fixed top-0 right-0 h-full w-80 bg-gray-900 border-l border-gray-800 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out z-50 flex flex-col">
+    <div id="watchlist-sidebar"
+        class="fixed top-0 right-0 h-full w-80 bg-gray-900 border-l border-gray-800 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out z-50 flex flex-col">
         <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-850">
             <h3 class="text-lg font-bold text-white flex items-center gap-2">⭐ Mi Watchlist</h3>
-            <button id="btn-cerrar-watchlist" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button id="btn-cerrar-watchlist"
+                class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
@@ -76,16 +98,21 @@
         </div>
     </div>
 
-    <div id="watchlist-overlay" class="fixed inset-0 bg-black/50 opacity-0 pointer-events-none transition-opacity duration-300 z-40"></div>
-    <div id="auth-container" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"></div>
+    <div id="watchlist-overlay"
+        class="fixed inset-0 bg-black/50 opacity-0 pointer-events-none transition-opacity duration-300 z-40"></div>
+    <div id="auth-container"
+        class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"></div>
 
     <main class="container mx-auto p-6 space-y-8">
 
         <section class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
             <h2 class="text-lg font-bold mb-3 text-gray-300">Buscar Activo</h2>
             <form id="buscador-form" class="flex gap-4 max-w-md">
-                <input type="text" id="ticker-input" placeholder="Ej: AAPL, TSLA, GGAL" class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 w-full text-white focus:outline-none focus:border-blue-500 uppercase font-semibold tracking-wider" required>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg transition duration-200">
+                <input type="text" id="ticker-input" placeholder="Ej: AAPL, TSLA, GGAL"
+                    class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 w-full text-white focus:outline-none focus:border-blue-500 uppercase font-semibold tracking-wider"
+                    required>
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg transition duration-200">
                     Buscar
                 </button>
             </form>
@@ -95,7 +122,8 @@
         <section class="bg-gray-800 rounded-xl border border-gray-700 shadow-md overflow-hidden">
             <div class="p-6 border-b border-gray-700 flex justify-between items-center">
                 <h2 class="text-xl font-bold text-white">Indicadores en Tiempo Real</h2>
-                <button id="btn-refrescar" class="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-lg border border-gray-600 transition">
+                <button id="btn-refrescar"
+                    class="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded-lg border border-gray-600 transition">
                     🔄 Refrescar DB
                 </button>
             </div>
@@ -117,15 +145,20 @@
             </div>
         </section>
 
-        <section id="seccion-grafico" class="relative bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
+        <section id="seccion-grafico"
+            class="relative bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md hidden">
 
-            <div class="flex flex-col md:flex-row items-center justify-between bg-slate-800 p-4 rounded-lg mb-4 border border-slate-700 gap-4">
-                
+            <div
+                class="flex flex-col md:flex-row items-center justify-between bg-slate-800 p-4 rounded-lg mb-4 border border-slate-700 gap-4">
+
                 <div class="flex flex-col sm:flex-row sm:items-center gap-4 w-full md:w-2/3">
                     <div class="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-700 w-fit">
-                        <button onclick="cambiarUnidadTiempo('dias')" id="btn-unidad-dias" class="text-xs font-semibold px-3 py-1.5 rounded-md transition-all bg-blue-500 text-white shadow-sm">Días</button>
-                        <button onclick="cambiarUnidadTiempo('meses')" id="btn-unidad-meses" class="text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white">Meses</button>
-                        <button onclick="cambiarUnidadTiempo('max')" id="btn-unidad-max" class="text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white">Máximo</button>
+                        <button onclick="cambiarUnidadTiempo('dias')" id="btn-unidad-dias"
+                            class="text-xs font-semibold px-3 py-1.5 rounded-md transition-all bg-blue-500 text-white shadow-sm">Días</button>
+                        <button onclick="cambiarUnidadTiempo('meses')" id="btn-unidad-meses"
+                            class="text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white">Meses</button>
+                        <button onclick="cambiarUnidadTiempo('max')" id="btn-unidad-max"
+                            class="text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white">Máximo</button>
                     </div>
 
                     <div id="contenedor-slider-dias" class="flex items-center gap-3 w-full">
@@ -133,7 +166,8 @@
                         <input type="range" id="range-dias" min="2" max="30" value="30"
                             class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                             oninput="procesarSliderInteligente('dias', this.value)">
-                        <span class="text-xs font-bold bg-slate-900 text-blue-400 px-2 py-1 rounded border border-slate-700 whitespace-nowrap">
+                        <span
+                            class="text-xs font-bold bg-slate-900 text-blue-400 px-2 py-1 rounded border border-slate-700 whitespace-nowrap">
                             <span id="valor-dias">30</span>d
                         </span>
                     </div>
@@ -143,21 +177,26 @@
                         <input type="range" id="range-meses" min="2" max="12" value="2"
                             class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                             oninput="procesarSliderInteligente('meses', this.value)">
-                        <span class="text-xs font-bold bg-slate-900 text-blue-400 px-2 py-1 rounded border border-slate-700 whitespace-nowrap">
+                        <span
+                            class="text-xs font-bold bg-slate-900 text-blue-400 px-2 py-1 rounded border border-slate-700 whitespace-nowrap">
                             <span id="valor-meses">2</span>m
                         </span>
                     </div>
                 </div>
 
-                <div class="flex bg-slate-900 p-1 rounded-lg border border-slate-700 items-center justify-end w-full md:w-auto">
-                    <button id="btn-vista-linea" onclick="cambiarTipoVista('linea')" class="bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors">
+                <div
+                    class="flex bg-slate-900 p-1 rounded-lg border border-slate-700 items-center justify-end w-full md:w-auto">
+                    <button id="btn-vista-linea" onclick="cambiarTipoVista('linea')"
+                        class="bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors">
                         📈 Línea
                     </button>
-                    <button id="btn-vista-velas" onclick="cambiarTipoVista('velas')" class="text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors">
+                    <button id="btn-vista-velas" onclick="cambiarTipoVista('velas')"
+                        class="text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors">
                         🕯️ Velas
                     </button>
 
-                    <button id="btn-cerrar-panel" class="ml-6 bg-slate-800 hover:bg-red-950/40 text-slate-300 hover:text-red-400 border border-slate-700 hover:border-red-900/60 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+                    <button id="btn-cerrar-panel"
+                        class="ml-6 bg-slate-800 hover:bg-red-950/40 text-slate-300 hover:text-red-400 border border-slate-700 hover:border-red-900/60 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm">
                         <span>❌</span> Cerrar
                     </button>
                 </div>
@@ -165,16 +204,38 @@
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 bg-slate-900/40 p-4 rounded-xl border border-slate-700/60 h-[450px] relative">
-                    <h3 id="titulo-grafico" class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-                        📊 Evolución del Activo
-                    </h3>
+
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 id="titulo-grafico" class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                            📊 Evolución del Activo
+                        </h3>
+
+                        <div id="grafico-tools"
+                            class="flex items-center gap-1 bg-slate-800/40 p-0.5 rounded-lg border border-slate-700/40">
+                            <button id="btn-herramienta-lupa" onclick="alternarHerramienta('lupa')"
+                                class="text-slate-400 hover:text-white px-2 py-1 rounded-md text-xs font-semibold transition-all bg-transparent flex items-center gap-1 hover:bg-slate-700/40"
+                                title="Activar Lupa (Zoom)">
+
+                                <svg id="icon-lupa" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                    stroke-width="2" stroke="currentColor"
+                                    class="w-4 h-4 text-slate-400 pointer-events-none transition-colors duration-200">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.602 10.602Z" />
+                                </svg>
+
+                                <span class="hidden sm:inline">Lupa</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="w-full h-[370px]">
                         <canvas id="historicoChart"></canvas>
                     </div>
                 </div>
 
                 <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-700/60 flex flex-col h-[450px]">
-                    <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <h3
+                        class="text-sm font-semibold text-white mb-3 flex items-center gap-2 border-b border-slate-700 pb-2">
                         🔥 Noticias Relevantes
                     </h3>
                     <div id="contenedor-noticias" class="flex-1 overflow-y-auto space-y-3 pr-1 text-slate-400">
@@ -192,30 +253,39 @@
                     <span class="text-2xl">📊</span>
                     <div>
                         <h3 class="text-lg font-bold text-slate-100 tracking-wide">Reporte Estructural del Activo</h3>
-                        <p class="text-xs text-slate-400">Auditoría técnica y fundamental integrada • <span class="text-indigo-400 font-medium">Gemini 2.5 Engine</span></p>
+                        <p class="text-xs text-slate-400">Auditoría técnica y fundamental integrada • <span
+                                class="text-indigo-400 font-medium">Gemini 2.5 Engine</span></p>
                     </div>
                 </div>
-                <button id="btn-generar-ia" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-sm rounded-lg shadow-lg shadow-indigo-500/20 transition-all duration-200 flex items-center gap-2 transform active:scale-95">
+                <button id="btn-generar-ia"
+                    class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-sm rounded-lg shadow-lg shadow-indigo-500/20 transition-all duration-200 flex items-center gap-2 transform active:scale-95">
                     <span>✨</span> Generar Reporte
                 </button>
             </div>
 
             <hr class="border-slate-800 my-4">
 
-            <div id="contenedor-reporte-ia" class="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed min-h-[100px] flex flex-col justify-center">
+            <div id="contenedor-reporte-ia"
+                class="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed min-h-[100px] flex flex-col justify-center">
                 <div id="ia-estado-inicial" class="text-center py-6 text-slate-500">
-                    <p>Hacé click en el botón superior para confeccionar un análisis técnico y fundamental de este activo.</p>
+                    <p>Hacé click en el botón superior para confeccionar un análisis técnico y fundamental de este
+                        activo.</p>
                 </div>
 
-                <div id="ia-estado-carga" class="hidden flex flex-col items-center justify-center gap-6 py-16 text-center text-indigo-400 bg-slate-900/60 backdrop-blur-md rounded-lg border border-slate-800/50">
+                <div id="ia-estado-carga"
+                    class="hidden flex flex-col items-center justify-center gap-6 py-16 text-center text-indigo-400 bg-slate-900/60 backdrop-blur-md rounded-lg border border-slate-800/50">
                     <div class="relative w-12 h-12">
                         <div class="absolute inset-0 w-full h-full border-4 border-slate-800 rounded-full"></div>
-                        <div class="absolute inset-0 w-full h-full border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div
+                            class="absolute inset-0 w-full h-full border-4 border-indigo-500 border-t-transparent rounded-full animate-spin">
+                        </div>
                     </div>
                     <div class="flex flex-col items-center gap-2 max-w-sm">
-                        <p class="text-sm font-semibold text-slate-100 tracking-wide">Generando Reporte Estructural...</p>
+                        <p class="text-sm font-semibold text-slate-100 tracking-wide">Generando Reporte Estructural...
+                        </p>
                         <p class="text-xs text-slate-400 animate-pulse px-4">
-                            Nuestro motor está procesando el historial de 200 días y redactando el análisis técnico y fundamental.
+                            Nuestro motor está procesando el historial de 200 días y redactando el análisis técnico y
+                            fundamental.
                         </p>
                     </div>
                 </div>
@@ -230,16 +300,20 @@
     <script src="components/ui.js"></script>
     <script src="app.js"></script>
 
-    <div id="modal-confirmacion" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50">
+    <div id="modal-confirmacion"
+        class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50">
         <div class="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4 text-center">
             <div class="text-red-500 text-4xl mb-3">⚠️</div>
             <h3 id="modal-titulo" class="text-xl font-bold text-white mb-2">¿Eliminar activo?</h3>
-            <p id="modal-mensaje" class="text-slate-400 text-sm mb-6">¿Estás seguro de que querés realizar esta acción?</p>
+            <p id="modal-mensaje" class="text-slate-400 text-sm mb-6">¿Estás seguro de que querés realizar esta acción?
+            </p>
             <div class="flex justify-center gap-3">
-                <button id="btn-modal-cancelar" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                <button id="btn-modal-cancelar"
+                    class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                     Cancelar
                 </button>
-                <button id="btn-modal-confirmar" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                <button id="btn-modal-confirmar"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                     Eliminar
                 </button>
             </div>

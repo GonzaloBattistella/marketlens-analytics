@@ -9,10 +9,18 @@ let misfavoritosGlobal = []; // Variable global, donde se almacenan los favortio
 let datosMercadoGlobal = []; // Guardará el listado completo de activos con sus precios en tiempo real.
 let unidadTiempoActual = 'dias'; // Puede ser 'dias', 'meses', 'max'.
 let cantidadTiempoActual = 30; // El valor numerico actual del slider activo.
+let herramientaActiva = 'cruz'; // Estado global de tu barra de herramientas.
 
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
 document.addEventListener("DOMContentLoaded", () => {
+    // Registro seguro y compatible de plugins
+    if (typeof window['chartjs-plugin-zoom'] !== 'undefined') {
+        Chart.register(window['chartjs-plugin-zoom']);
+    } else if (typeof ChartZoom !== 'undefined') {
+        Chart.register(ChartZoom);
+    }   
+
     cargarIndicadores();
 
     const btnCerrar = document.getElementById('btn-cerrar-panel');
@@ -640,14 +648,10 @@ function actualizarGraficoProcesado(datosARenderizar) {
         };
     }
 
-
-    if (miGrafico) {
-        miGrafico.destroy();
-    }
-
     // ==========================================
     //      NUEVA CONFIGURACIÓN DEL CHART
     // ==========================================
+    
     if (miGrafico) {
         miGrafico.destroy();
     }
@@ -671,6 +675,19 @@ function actualizarGraficoProcesado(datosARenderizar) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+
+            // Control dinamico del cursor (cruz vs Lupa).
+            onHover: (event) => {
+                const canvas = event.chart.canvas;
+
+                // Sila variable global 'herramienta activa' es 'lupa', cambia a zoom.
+                if (typeof herramientaActiva !== 'undefined' && herramientaActiva === 'lupa') {
+                    canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'></circle><line x1='16' y1='16' x2='22' y2='22'></line></svg>\") 8 8, auto";
+                }
+                else {
+                    canvas.style.cursor = 'crosshair';
+                }
+            },
 
             // Configuracion de interaccion magnetica estilo TradingView.
             interaction: {
@@ -718,6 +735,29 @@ function actualizarGraficoProcesado(datosARenderizar) {
                             type: 'line', yMin: promedioPrecio, yMax: promedioPrecio,
                             borderColor: 'rgba(234, 179, 8, 0.3)', borderWidth: 1.5, borderDash: [6, 6],
                             label: { display: true, content: `Prom: $${promedioPrecio.toFixed(2)}`, position: 'end', backgroundColor: 'rgba(234, 179, 8, 0.6)', style: { fontSize: 10 } }
+                        }
+                    }
+                },
+                zoom: {
+                    zoom: {
+                        drag: {
+                            enabled: true,
+                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                            borderColor: 'rgba(59, 130, 246, 0.6)',
+                            borderWidth: 1
+                        },
+                        wheel: {
+                            enabled: true, // Habilita el zoom con el scroll del mouse.
+                            speed: 0.1
+                        },
+                        mode: 'x',
+                        // Esto le asegura al plugin que afecte al eje del tiempo X
+                        scales: ['x'],
+                        onZoomStart: function() {
+                            if (typeof herramientaActiva !== 'undefined' && herramientaActiva === 'lupa') {
+                                return true;
+                            }
+                            return false;
                         }
                     }
                 }
@@ -1422,4 +1462,61 @@ function fetchAutenticado(url, opciones = {}) {
             // Si todo está bien (200, 201, etc.), pasamos la respuesta limpia.
             return response;
         });
+}
+
+
+// ============================================================================
+//      FUNCIONES PARA LA SECCIÓN DE LA TOOLBOX (Caja de Herramientas).
+// ============================================================================
+
+/**
+ * Alterna el tipo de herramienta sellecionada por el usuario.
+ * @param {string} herramienta - Toma el valor de 'lupa' o 'cruz'. 
+ */
+function alternarHerramienta(herramienta) {
+    const btnLupa = document.getElementById('btn-herramienta-lupa');
+    const iconoLupa = document.getElementById('icon-lupa');
+
+    // Si ya estaba activa la lupa y se vuelve a tocar, se desactiva (vuelve a la cruz).
+    if (herramientaActiva === 'lupa' && herramienta === 'lupa') {
+        herramientaActiva = 'cruz';
+
+        // Estilos de boton INACTIVO / DESACTIVADO.
+        if (btnLupa) {
+            btnLupa.className = "text-slate-400 hover:text-slate-200 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all bg-transparent flex items-center gap-2 hover:bg-slate-700/40";
+            
+            // Al apagarse la funcion, invita a volver a activarla.
+            btnLupa.title = "Activar Lupa (Zoom)"; 
+        }
+        if (iconoLupa) {
+            iconoLupa.className = "w-4 h-4 text-slate-400 pointer-events-none transition-colors duration-200";
+        }
+
+        // Si tenia zoom metido, al llamar a está funcion limpia el lienzo.
+        // y vuelve a dibujar los dias exactos que corresponden al slider activo.
+        renderizarRangoActual();
+    } else {
+        // Activamos la herramienta lupa
+        herramientaActiva = herramienta;
+
+        // Estilos de boton ACTIVO (Estilo Oro Premium).
+        if (btnLupa) {
+            btnLupa.className = "bg-amber-500/10 text-amber-400 px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 border border-amber-500/30 shadow-sm shadow-amber-500/5";
+
+            // Al Encenderse, te avisa que si haces click se desactiva.
+            btnLupa.title = "Desactivar Lupa (Reset Zoom)";
+        }
+        if (iconoLupa) {
+            iconoLupa.className = "w-4 h-4 text-amber-400 pointer-events-none transition-colors duration-200";
+        }
+    }
+
+    // Sincronizacion inmediata del cursor sobre el canvas.
+    if (miGrafico && miGrafico.canvas) {
+        if (herramientaActiva === 'lupa') {
+            miGrafico.canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'></circle><line x1='16' y1='16' x2='22' y2='22'></line></svg>\") 8 8, auto";
+        } else {
+            miGrafico.canvas.style.cursor = 'crosshair';
+        }
+    }
 }

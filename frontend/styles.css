@@ -26,3 +26,13 @@
 ::-webkit-scrollbar-thumb:hover {
     background: #475569; /* Se aclara un toque al pasar el mouse (slate-600) */
 }
+
+/* Cursor de Lupa Custom Profesional estilo TradingView */
+.cursor-lupa-pro {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'></circle><line x1='16' y1='16' x2='22' y2='22'></line></svg>") 8 8, auto !important;
+}
+
+canvas#graficoInteractivo {
+    cursor: crosshair;
+}
+

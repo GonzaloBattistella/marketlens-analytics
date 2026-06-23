@@ -10,7 +10,8 @@ let datosMercadoGlobal = []; // Guardará el listado completo de activos con sus
 let unidadTiempoActual = 'dias'; // Puede ser 'dias', 'meses', 'max'.
 let cantidadTiempoActual = 30; // El valor numerico actual del slider activo.
 let herramientaActiva = 'cruz'; // Estado global de tu barra de herramientas.
-let mostrarSMA20 = false; // Para controlar el estado de llos indicadores. (SMA 2o días).
+let mostrarSMA20 = false; // Para controlar el estado de los indicadores. (SMA 2o días).
+let mostrarEMA20 = false; 
 
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
@@ -614,8 +615,9 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const sumaCierres = preciosCierre.reduce((acc, p) => acc + p, 0);
     const promedioPrecio = sumaCierres / preciosCierre.length;
 
-    // Calculamos la SMA de todo el historial con coordenadas de tiempo puras.
+    // CALCULOS DE INDICADORES (Usando el historial completo para evitar desfasajes en el gráfico).
     const datosSMA20 = calcularSMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
+    const datosEMA20 = calcularEMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
 
     // Actualizo los valores del Panel OHLC dentro de la sección del Gráfico
     actualizarPanelOHLCEstatico(preciosApertura, preciosMaximos, preciosMinimos, preciosCierre);
@@ -687,12 +689,25 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     barThickness: 'flex'
                 },
 
-                // DATASET CONDICIONAL DE LA SMA
+                // DATASET DINAMICO DE LA SMA20.
                 ...(mostrarSMA20 ? [{
                     label: 'SMA (20)',
                     data: datosSMA20,
                     type: 'line',
                     borderColor: '#a855f7', // Violeta tecnológico
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.2,
+                    yAxisID: 'y'
+                }] : []), 
+
+                // DATASET DINAMICO DE LA EMA20.
+                ...(mostrarEMA20 ? [{
+                    label: 'EMA (20)',
+                    data: datosEMA20,
+                    type: 'line',
+                    borderColor: '#22d3ee', // Cyan/Celeste dinamico.
                     borderWidth: 2,
                     pointRadius: 0,
                     pointHoverRadius: 4,
@@ -728,8 +743,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
                                     `🟢 Apertura: $${preciosApertura[index].toFixed(2)}`,
                                     `🔵 Cierre: $${preciosCierre[index].toFixed(2)}`,
                                     `🔺 Máximo: $${preciosMaximos[index].toFixed(2)}`,
-                                    `🔻 Mínimo: $${preciosMinimos[index].toFixed(2)}`,
-                                    `📊 Vol: ${volumenes[index].toLocaleString()}`
+                                    `🔻 Mínimo: $${preciosMinimos[index].toFixed(2)}`
                                 ];
                             }
                             // Si el mouse pasa arriba de la línea SMA (dataset 2), mostramos su valor promediado
@@ -739,6 +753,17 @@ function actualizarGraficoProcesado(datosARenderizar) {
                                     // Si es un objeto (vista velas), extraemos .y. Si es un número plano (vista Linea), lo usamos directo.
                                     const valorLimpio = (typeof puntoActual === 'object') ? puntoActual.y : puntoActual;
                                     return `SMA (20): $${valorLimpio.toFixed(2)}`;
+                                }
+
+                                return null;
+                            }
+
+                            // Soporte Tooltip para la EMA20.
+                            if (context.dataset && context.dataset.label === 'EMA (20)') {
+                                const puntoActual = context.dataset.data[context.dataIndex];
+                                if(puntoActual !== null && puntoActual !== undefined) {
+                                    const valorLimpio = (typeof puntoActual === 'object') ? puntoActual.y : puntoActual;
+                                    return `EMA (20): $${valorLimpio.toFixed(2)}`;
                                 }
 
                                 return null;
@@ -1538,6 +1563,26 @@ function alternarHerramienta(herramienta) {
     }
 }
 
+
+/**
+ * Controla el desplegable con la lista de herramaientas.
+ */
+function toggleDropdownIndicadores() {
+    const dropdown = document.getElementById('dropdown-indicadores');
+    if (dropdown) dropdown.classList.toggle('hidden');
+}
+
+// Evento Escuchador: Cerrar dropdown si hacen click fuera del menú.
+window.addEventListener('click', function(e) {
+    const dropdown = this.document.getElementById('dropdown-indicadores');
+    const contenedor = this.document.getElementById('contenedor-dropdown-indicadores');
+
+    if (dropdown && contenedor && !contenedor.contains(e.target)) {
+        dropdown.classList.add('hidden');
+    }
+})
+
+
 /**
  * Calcula la Media Móvil Simple (SMA) de un array de datos.
  * @param {Array} datosCompletos - Array con los precios de cierre.
@@ -1593,26 +1638,99 @@ function calcularSMA(datosCompletos, periodo, fechasVisibles, vistaActual) {
 
 
 /**
- * Enciende o apaga el indicador de la Media Móvil (SMA 20)
+ * TOGGLE SMA 20.
  */
 function toggleSMA20() {
-    const btnSMA = document.getElementById('btn-indicador-sma');
-    if (!btnSMA) return;
-    
-    // Invertimos el estado booleano
+    // 1. Invertimos el estado booleano global
     mostrarSMA20 = !mostrarSMA20;
 
-    if (mostrarSMA20) {
-        // Estilos de botón ACTIVO (Púrpura Premium)
-        btnSMA.className = "bg-purple-500/10 text-purple-400 px-2 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 border border-purple-500/30 shadow-sm shadow-purple-500/5";
-    } else {
-        // Estilos de botón INACTIVO (Slate clásico apagado)
-        btnSMA.className = "text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md text-xs font-semibold transition-all bg-transparent flex items-center gap-1 hover:bg-slate-700/40";
-    }
+    // 2. Buscamos y alteramos de forma segura las visibilidades en la interfaz
+    const checkSMA = document.getElementById('check-sma');
+    const testigoSMA = document.getElementById('testigo-sma');
 
-    // FORZAMOS REDIBUJADO: Para asegurarnos de que limpie o dibuje al instante,
-    // si 'renderizarRangoActual' no responde, llamamos directamente al destructor del gráfico pasándole el estado
+    if (checkSMA) checkSMA.classList.toggle('hidden', !mostrarSMA20);
+    if (testigoSMA) testigoSMA.classList.toggle('hidden', !mostrarSMA20);
+
+    // 3. Forzamos el redibujado sincronizado con el rango del slider actual
     if (typeof renderizarRangoActual === 'function') {
         renderizarRangoActual();
     }
 }
+
+/**
+ * TOGGLE EMA 20.
+ */
+function toggleEMA20() {
+    // 1. Invertimos el estado booleano global
+    mostrarEMA20 = !mostrarEMA20;
+
+    // 2. Buscamos y alteramos de forma segura las visibilidades en la interfaz
+    const checkEMA = document.getElementById('check-ema');
+    const testigoEMA = document.getElementById('testigo-ema');
+
+    if (checkEMA) checkEMA.classList.toggle('hidden', !mostrarEMA20);
+    if (testigoEMA) testigoEMA.classList.toggle('hidden', !mostrarEMA20);
+
+    // 3. Forzamos el redibujado sincronizado con el rango del slider actual
+    if (typeof renderizarRangoActual === 'function') {
+        renderizarRangoActual();
+    }
+}
+
+/**
+ * Calcula el valor del EMA.
+ */
+// FUNCION CALCULAR EMA PROFESIONAL (Adaptable a Lineas y Velas).
+function calcularEMA (datosCompletos, periodo, fechasVisibles, vistaActual) {
+    if (!datosCompletos || datosCompletos.length === 0) return [];
+
+    let emaMap = {};
+
+    // Calculo el multiplicador Exponencial (Factor K).
+    const multiplicador = 2 / (periodo + 1);
+
+    // Necesito un punto de partida (una SMA Simple) para los primeros 'periodo' días.
+    let sumaInicial = 0;
+    for (let i=0; i < periodo; i++) {
+        sumaInicial += datosCompletos[i].precio_cierre
+    }
+    let emaAnterior = sumaInicial / periodo;
+
+    // Guardo esa primera SMA en nuestro mapa.
+    emaMap[datosCompletos[periodo - 1].fecha] = Number(emaAnterior.toFixed(2));
+
+    // Corremos el calculo exponencial para el resto del historial.
+    for (let i = periodo; i < datosCompletos.length; i++) {
+        const precioActual = datosCompletos[i].precio_cierre;
+
+        // FORMULA EMA.
+        const emaActual = (precioActual - emaAnterior) * multiplicador + emaAnterior;
+
+        emaMap[datosCompletos[i].fecha] = Number(emaActual.toFixed(2));
+        emaAnterior = emaActual; // Actualizo el valor del EMA, el de hoy pasa a ser el de "ayer" en la proxima vuelta.
+    }
+
+    // Mapeamos y recortamos segun las fechas que estan en pantalla.
+    let resultadoFinal = [];
+    
+    fechasVisibles.forEach(fecha => {
+        const valorEMA = emaMap[fecha];
+
+        if (valorEMA !== undefined && valorEMA !== null) {
+            if (vistaActual === 'velas') {
+                resultadoFinal.push({
+                    x: new Date(fecha).getTime(),
+                    y: valorEMA
+                });
+            } else {
+                resultadoFinal.push(valorEMA);
+            }
+        } else {
+            if (vistaActual !== 'velas') {
+                resultadoFinal.push(null);
+            }
+        }
+    });
+
+    return resultadoFinal;
+} 

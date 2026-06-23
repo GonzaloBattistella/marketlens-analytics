@@ -10,8 +10,10 @@ let datosMercadoGlobal = []; // Guardará el listado completo de activos con sus
 let unidadTiempoActual = 'dias'; // Puede ser 'dias', 'meses', 'max'.
 let cantidadTiempoActual = 30; // El valor numerico actual del slider activo.
 let herramientaActiva = 'cruz'; // Estado global de tu barra de herramientas.
-let mostrarSMA20 = false; // Para controlar el estado de los indicadores. (SMA 2o días).
-let mostrarEMA20 = false; 
+
+// Para controlar el estado de los indicadores de forma persistente.
+let mostrarSMA20 = localStorage.getItem('mostrarSMA20') === 'true';
+let mostrarEMA20 = localStorage.getItem('mostrarEMA20') === 'true';
 
 
 // Cuando la página termine de cargarse en el navegador, ejecutamos la función
@@ -24,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     cargarIndicadores();
+    sincronizarUIVisualIndicadores();
 
     const btnCerrar = document.getElementById('btn-cerrar-panel');
     const panelGeneral = document.getElementById('seccion-grafico');
@@ -373,6 +376,9 @@ function verHistorial(ticker) {
                 contDias.classList.remove('hidden');
                 contMeses.classList.add('hidden');
             }
+
+            // Aseguramos que la UI del dropdown mantenga los indicadores encendidos.
+            sincronizarUIVisualIndicadores();
 
             // Llamo a función interna que se encarga de procesar y dibujar el estado inicial (30 días).
             actualizarGraficoProcesado(datosHistoricosCompletos.slice(-30));
@@ -1644,12 +1650,11 @@ function toggleSMA20() {
     // 1. Invertimos el estado booleano global
     mostrarSMA20 = !mostrarSMA20;
 
-    // 2. Buscamos y alteramos de forma segura las visibilidades en la interfaz
-    const checkSMA = document.getElementById('check-sma');
-    const testigoSMA = document.getElementById('testigo-sma');
+    // Guardo la preferencia en el localStorage.
+    localStorage.setItem('mostrarSMA20', mostrarSMA20);
 
-    if (checkSMA) checkSMA.classList.toggle('hidden', !mostrarSMA20);
-    if (testigoSMA) testigoSMA.classList.toggle('hidden', !mostrarSMA20);
+    // Sincronizamos los elementos visuales e inmediatamente redibujamos.
+    sincronizarUIVisualIndicadores();
 
     // 3. Forzamos el redibujado sincronizado con el rango del slider actual
     if (typeof renderizarRangoActual === 'function') {
@@ -1664,13 +1669,12 @@ function toggleEMA20() {
     // 1. Invertimos el estado booleano global
     mostrarEMA20 = !mostrarEMA20;
 
-    // 2. Buscamos y alteramos de forma segura las visibilidades en la interfaz
-    const checkEMA = document.getElementById('check-ema');
-    const testigoEMA = document.getElementById('testigo-ema');
+    // Guardamos la preferencia en el localStorage.
+    localStorage.setItem('mostrarEMA20', mostrarEMA20);
 
-    if (checkEMA) checkEMA.classList.toggle('hidden', !mostrarEMA20);
-    if (testigoEMA) testigoEMA.classList.toggle('hidden', !mostrarEMA20);
-
+    // Sincronizamos los elementos viasuales e inmediatamente redibujamos.
+    sincronizarUIVisualIndicadores();
+    
     // 3. Forzamos el redibujado sincronizado con el rango del slider actual
     if (typeof renderizarRangoActual === 'function') {
         renderizarRangoActual();
@@ -1733,4 +1737,20 @@ function calcularEMA (datosCompletos, periodo, fechasVisibles, vistaActual) {
     });
 
     return resultadoFinal;
-} 
+}
+
+/**
+ * Sincroniza los elementos visuales del menú desplegable de indicadores
+ * con el estado real de las variables globales.
+ */
+function sincronizarUIVisualIndicadores() {
+    const checkSMA = document.getElementById('check-sma');
+    const testigoSMA = document.getElementById('testigo-sma');
+    const checkEMA = document.getElementById('check-ema');
+    const testigoEMA = document.getElementById('testigo-ema');
+
+    if (checkSMA) checkSMA.classList.toggle('hidden', !mostrarSMA20);
+    if (testigoSMA) testigoSMA.classList.toggle('hidden', !mostrarSMA20);
+    if (checkEMA) checkEMA.classList.toggle('hidden', !mostrarEMA20);
+    if (testigoEMA) testigoEMA.classList.toggle('hidden', !mostrarEMA20);
+}

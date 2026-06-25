@@ -292,3 +292,15 @@ function UI_sincronizarEstrellasTabla(listaFavoritos) {
         }
     });
 }
+
+/**
+ * Reestablece visualmente el slider del historial a su estado por defecto (30 días).
+ */
+function UI_resetearSliderAValorPorDefecto() {
+    const slider = document.getElementById('slider-historial');
+    const sliderValor = document.getElementById('slider-valor');
+    if (slider && sliderValor) {
+        slider.value = 30;
+        sliderValor.textContent = '30d';
+    }
+}

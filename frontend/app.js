@@ -54,6 +54,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ---- ESCUCHADORES DE EVENTOS (LISTENERS) ---- 
 
+    // Listener para que el slider responda de a 1 día fino usando las flechas del teclado
+    const sliderHistorial = document.getElementById('slider-historial');
+    if (sliderHistorial) {
+        sliderHistorial.addEventListener('keydown', (e) => {
+            let valorActual = parseInt(sliderHistorial.value);
+            if (e.key === 'ArrowRight') {
+                sliderHistorial.value = Math.min(valorActual + 1, parseInt(sliderHistorial.max));
+                manejarCambioSlider(sliderHistorial.value);
+                e.preventDefault(); // Evita que la página haga scroll lateral
+            } else if (e.key === 'ArrowLeft') {
+                sliderHistorial.value = Math.max(valorActual - 1, parseInt(sliderHistorial.min));
+                manejarCambioSlider(sliderHistorial.value);
+                e.preventDefault();
+            }
+        });
+    }
+
     if (btnCerrar && panelGeneral) {
         btnCerrar.addEventListener('click', () => {
             panelGeneral.style.display = 'none'; // Oculta todo el bloque completo (Grafico + Noticias).
@@ -348,43 +365,44 @@ function verHistorial(ticker) {
             // ==========================================
             datosHistoricosCompletos = datosHistorial; // Me guardo los datos del historial que vinieron de la DB.
 
-            // RESETEO INTELIGENTE DE CONTROLES AL CAMBIAR DE ACTIVO
-            const sliderDias = document.getElementById("range-dias");
-            if (sliderDias) {
-                sliderDias.value = 30;
-                const txtDias = document.getElementById("valor-dias");
-                if (txtDias) txtDias.innerText = 30;
-            }
+            // Configuración del slider unico continuo.
+            const slider = document.getElementById('slider-historial');
+            if (slider && datosHistoricosCompletos.length > 0) {
+                const totalDiasReales = datosHistoricosCompletos.length;
 
-            const sliderMeses = document.getElementById("range-meses");
-            if (sliderMeses) {
-                sliderMeses.value = 2;
-                const txtMeses = document.getElementById("valor-meses");
-                if (txtMeses) txtMeses.innerText = 2;
-            }
+                // Si el activo es nuevo, adaptamos el minimo a 2 dias.
+                if (totalDiasReales < 5) {
+                    slider.min = 2;
+                } else {
+                    slider.min = 5;
+                }
+                
+                // Establezco el limite maximo real del activo.
+                slider.max = datosHistoricosCompletos.length;
 
-            // Forzamos que visualmente el sistema regrese a la unidad "Días" predeterminada
-            unidadTiempoActual = 'dias';
-            const btnDias = document.getElementById('btn-unidad-dias');
-            const contDias = document.getElementById('contenedor-slider-dias');
-            const contMeses = document.getElementById('contenedor-slider-meses');
-
-            if (btnDias && contDias && contMeses) {
-                document.getElementById('btn-unidad-meses').className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
-                document.getElementById('btn-unidad-max').className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
-                btnDias.className = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all bg-blue-500 text-white shadow-md";
-                contDias.classList.remove('hidden');
-                contMeses.classList.add('hidden');
+                // Arrancamos mostrando 30 dias (o el maximo si el historial es más chico).
+                slider.value = Math.min(30, datosHistoricosCompletos.length);
             }
 
             // Aseguramos que la UI del dropdown mantenga los indicadores encendidos.
             sincronizarUIVisualIndicadores();
+            
+            // Forzamos el renderizado inicial usando el valor real del slider.
+            if (slider) {
+                manejarCambioSlider(slider.value);
+            } else {
+                actualizarGraficoProcesado(datosHistoricosCompletos.slice(-30));
+            }
 
-            // Llamo a función interna que se encarga de procesar y dibujar el estado inicial (30 días).
-            actualizarGraficoProcesado(datosHistoricosCompletos.slice(-30));
+            // Scroll General para toda la app a la seccion del gráfico al cambiar de activo.
+            const seccionGrafico = document.getElementById('seccion-grafico');
+            if (seccionGrafico) {
+                // Me aseguro de quitar el 'hidden' si es la primera vez que se abre.
+                seccionGrafico.classList.remove('hidden');
 
-            // Auto-scrollear suavemente hasta la sección del gráfico
-            seccionGrafico.scrollIntoView({ behavior: 'smooth' });
+                // Muevo suavemente la pantalla, hacia la seccion del gráfico.
+                seccionGrafico.scrollIntoView({behavior: 'smooth', block: 'start'});
+            }
         })
         .catch(error => {
             console.error("Error técnico real:", error);
@@ -444,81 +462,79 @@ function verHistorial(ticker) {
 }
 
 /**
- * Alterna visualmente entre los sliders de dias, meses o vista maxima.
- * Verificando si el activo tiene suficientes datos historicos.
+ * Se ejecuta en tiempo real cada vez que el usuario arrastra el slider unificado.
  */
-function cambiarUnidadTiempo(unidad) {
-    unidadTiempoActual = unidad; // Guardamos el estado
+function manejarCambioSlider(valor) {
+    const dias = parseInt(valor);
 
-    // Reseteamos valores por defecto de los sliders al cambiar de pestaña
-    if (unidad === 'dias') {
-        cantidadTiempoActual = 30;
-        document.getElementById('range-dias').value = 30;
-        document.getElementById('valor-dias').innerText = 30;
-    } else if (unidad === 'meses') {
-        cantidadTiempoActual = 2;
-        document.getElementById('range-meses').value = 2;
-        document.getElementById('valor-meses').innerText = 2;
-    }
+    // Actualizo el visor de texto de froma inteligente (dias, meses o años).
+    actualizarTextoVisorSlider(dias);
 
-    // Sincronizamos la UI de los botones (encender el activo, apagar el resto)
-    actualizarEstilosBotonesTiempo(unidad);
+    // Recorto el historial desde el final hacia atras segun los dias elegidos.
+    const datosRecortados = datosHistoricosCompletos.slice(-dias);
 
-    // Dibujamos con el nuevo rango
-    renderizarRangoActual();
+    // Renderizo el gráfico con la porción exacta de tiempo recortada.
+    actualizarGraficoProcesado(datosRecortados);
 }
 
 /**
- * Procesa el movimiento de los sliders, calcula el recorte matematico
- * y actualiza las etiquetas del DOM. 
+ * Traduce los días bursatiles del slider en etiquetas de tiempo real.
+ * Comparando las fechas del historial, para evitar la distorsion de feriados/fines de semana.
  */
-function procesarSliderInteligente(unidad, valor) {
-    // Si el usuario mueve el slider, nos aseguramos que pertenezca a la unidad activa
-    unidadTiempoActual = unidad;
-    cantidadTiempoActual = parseInt(valor);
+function actualizarTextoVisorSlider(dias) {
+    const visor = document.getElementById('slider-valor');
+    if (!visor) return;
 
-    // Actualizamos el número en el badge correspondiente
-    if (unidad === 'dias') {
-        document.getElementById('valor-dias').innerText = valor;
-    } else if (unidad === 'meses') {
-        document.getElementById('valor-meses').innerText = valor;
+    const totalDisponible = datosHistoricosCompletos.length;
+
+    // Si llegó al tope del historial de la base de datos, mostramos "Máximo".
+    if (dias >= totalDisponible && totalDisponible > 0) {
+        const fechaMasAntigua = new Date(datosHistoricosCompletos[0].fecha);
+        const fechaMasReciente = new Date(datosHistoricosCompletos[totalDisponible - 1].fecha);
+
+        // Calculo la diferencia real en años del calendario.
+        const diferenciaAnios = (fechaMasAntigua - fechaMasReciente) / (1000 * 60 * 60 * 24 * 365.25);
+
+        if (diferenciaAnios >= 1) {
+            visor.textContent = `Máx (${diferenciaAnios.toFixed(1)})`;
+        } else {
+            visor.textContent = `Máx (${dias}d)`;
+        }
+
+        return;
     }
 
-    // Dibujamos dinámicamente mientras arrastra
-    renderizarRangoActual();
-}
+    // Fuerzo días exactos si el slider pide 90 dias o menos. 
+    if (dias <= 90) {
+        visor.textContent = `${dias}d`;
+        return; // corto la ejecución aca, para que no haga los calculos de los meses.
+    }
 
-// FUNCIÓN AUXILIAR DE UI: Mantiene los botones en su lugar.
-function actualizarEstilosBotonesTiempo(unidadActiva) {
-    const btnDias = document.getElementById('btn-unidad-dias');
-    const btnMeses = document.getElementById('btn-unidad-meses');
-    const btnMax = document.getElementById('btn-unidad-max');
+    // Si es un rango intermedio, miramos la porcion recortada.
+    if (dias < 30) {
+        visor.textContent = `${dias}d`;
+    } else {
+        // Obtengo el indice del registro desde el cual estamos cortando hacia atras.
+        const indiceInicio = Math.max(0, totalDisponible - dias);
+        const fechaInicio = new Date(datosHistoricosCompletos[indiceInicio].fecha);
+        const fechaFin = new Date(datosHistoricosCompletos[totalDisponible - 1].fecha);
 
-    const contDias = document.getElementById('contenedor-slider-dias');
-    const contMeses = document.getElementById('contenedor-slider-meses');
+        // Diferencia exacta en días de calendario real.
+        const milisegundos = fechaFin - fechaInicio;
+        const diasCalendarioReales = Math.ceil(milisegundos / (1000 * 60 * 60 * 24));
 
-    // clase base de Tailwind.
-    const claseInactivo = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all text-slate-400 hover:text-white bg-transparent";
-    const claseActivo = "text-xs font-semibold px-3 py-1.5 rounded-md transition-all bg-blue-500 text-white shadow-md";
-
-    // Resetear estilos de botones
-    btnDias.className = claseInactivo;
-    btnMeses.className = claseInactivo;
-    btnMax.className = claseInactivo;
-
-    // Ocultar sliders por defecto.
-    contDias.classList.add('hidden');
-    contMeses.classList.add('hidden');
-
-    // Activamos lo que corresponda segun el estado real.
-    if (unidadActiva === 'dias') {
-        btnDias.className = claseActivo;
-        contDias.classList.remove('hidden');
-    } else if (unidadActiva === 'meses') {
-        btnMeses.className = claseActivo;
-        contMeses.classList.remove('hidden');
-    } else if (unidadActiva === 'max') {
-        btnMax.className = claseActivo;
+        if (diasCalendarioReales < 30) {
+            visor.textContent = `${diasCalendarioReales}d`;
+        } else if (diasCalendarioReales >= 30 && diasCalendarioReales < 365) {
+            const meses = Math.floor(diasCalendarioReales / 30.4); // Promedio de días por mes.
+            const restos = Math.floor(diasCalendarioReales % 30.4);
+            visor.textContent = restos > 0 ? `${meses}m ${restos}d` : `${meses} mes${meses > 1 ? 'es' : ''}`;
+        } else {
+            // Mas de un año calendario.
+            const anios = Math.floor(diasCalendarioReales / 365.25);
+            const mesesRestantes = Math.floor((diasCalendarioReales % 365.25) / 30.4);
+            visor.textContent = mesesRestantes > 0 ? `${anios}a ${mesesRestantes}m` : `${anios} año${anios > 1 ? 's' : ''}`;
+        }
     }
 }
 
@@ -603,7 +619,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
         textoReporteIA.classList.add('hidden');
         textoReporteIA.innerHTML = '';
     }
-    
+
     // =========================================================================
 
     // Procesamiento de los datos a renderizar (Ya recortados por el slider/vista)
@@ -622,9 +638,22 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const promedioPrecio = sumaCierres / preciosCierre.length;
 
     // CALCULOS DE INDICADORES (Usando el historial completo para evitar desfasajes en el gráfico).
-    const datosSMA20 = calcularSMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
-    const datosEMA20 = calcularEMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
-
+    // Pregunto si el numero de datos en el hisrotial es mayor a 20 dias.
+    let datosSMA20 = [];
+    let datosEMA20 = [];
+    
+    if (mostrarSMA20 || mostrarEMA20) {
+        if(datosHistoricosCompletos.length > 20) {
+            datosSMA20 = calcularSMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
+            datosEMA20 = calcularEMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
+        } else {
+            // Apagamos los indicadores para evitar que queden tildados erróneamente en la Interfaz.
+            mostrarSMA20 = false;
+            mostrarEMA20 = false;
+            sincronizarUIVisualIndicadores(); // Limpio los checks visuales en la Dropdown.
+        }
+    }
+    
     // Actualizo los valores del Panel OHLC dentro de la sección del Gráfico
     actualizarPanelOHLCEstatico(preciosApertura, preciosMaximos, preciosMinimos, preciosCierre);
 
@@ -706,7 +735,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     pointHoverRadius: 4,
                     tension: 0.2,
                     yAxisID: 'y'
-                }] : []), 
+                }] : []),
 
                 // DATASET DINAMICO DE LA EMA20.
                 ...(mostrarEMA20 ? [{
@@ -767,7 +796,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
                             // Soporte Tooltip para la EMA20.
                             if (context.dataset && context.dataset.label === 'EMA (20)') {
                                 const puntoActual = context.dataset.data[context.dataIndex];
-                                if(puntoActual !== null && puntoActual !== undefined) {
+                                if (puntoActual !== null && puntoActual !== undefined) {
                                     const valorLimpio = (typeof puntoActual === 'object') ? puntoActual.y : puntoActual;
                                     return `EMA (20): $${valorLimpio.toFixed(2)}`;
                                 }
@@ -1035,6 +1064,9 @@ function cambiarTipoVista(nuevaVista) {
         btnLinea.className = "text-slate-400 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-transparent";
         tipoVistaActual = 'velas';
     }
+
+    // Si se cambia el tipo de Grafico (linea a velas o viceversa), reseteo el slider.
+    UI_resetearSliderAValorPorDefecto();
 
     renderizarRangoActual();
 }
@@ -1529,6 +1561,9 @@ function alternarHerramienta(herramienta) {
     if (herramientaActiva === 'lupa' && herramienta === 'lupa') {
         herramientaActiva = 'cruz';
 
+        // Sincronizo el slider al reiniciar la vista a 30 dias.
+        UI_resetearSliderAValorPorDefecto();
+
         // Estilos de boton INACTIVO / DESACTIVADO.
         if (btnLupa) {
             btnLupa.className = "text-slate-400 hover:text-slate-200 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all bg-transparent flex items-center gap-2 hover:bg-slate-700/40";
@@ -1579,7 +1614,7 @@ function toggleDropdownIndicadores() {
 }
 
 // Evento Escuchador: Cerrar dropdown si hacen click fuera del menú.
-window.addEventListener('click', function(e) {
+window.addEventListener('click', function (e) {
     const dropdown = this.document.getElementById('dropdown-indicadores');
     const contenedor = this.document.getElementById('contenedor-dropdown-indicadores');
 
@@ -1618,7 +1653,7 @@ function calcularSMA(datosCompletos, periodo, fechasVisibles, vistaActual) {
 
     fechasVisibles.forEach(fecha => {
         const valorSMA = smaMap[fecha];
-        
+
         // Si es nulo o no existe, lo salteamos completamente. 
         // No le mandamos basura ni 'nulls' al motor de Chart.js.
         if (valorSMA !== undefined && valorSMA !== null) {
@@ -1647,6 +1682,11 @@ function calcularSMA(datosCompletos, periodo, fechasVisibles, vistaActual) {
  * TOGGLE SMA 20.
  */
 function toggleSMA20() {
+    if (datosHistoricosCompletos.length < 20) {
+        mostrarToast('Días Insuficiente para calcular los indicadores de 20 períodos', 'info');
+        return;
+    }
+
     // 1. Invertimos el estado booleano global
     mostrarSMA20 = !mostrarSMA20;
 
@@ -1655,6 +1695,8 @@ function toggleSMA20() {
 
     // Sincronizamos los elementos visuales e inmediatamente redibujamos.
     sincronizarUIVisualIndicadores();
+
+    UI_resetearSliderAValorPorDefecto();
 
     // 3. Forzamos el redibujado sincronizado con el rango del slider actual
     if (typeof renderizarRangoActual === 'function') {
@@ -1666,6 +1708,11 @@ function toggleSMA20() {
  * TOGGLE EMA 20.
  */
 function toggleEMA20() {
+    if (datosHistoricosCompletos.length < 20) {
+        mostrarToast('Días Insuficiente para calcular los indicadores de 20 períodos', 'info');
+        return;
+    }
+
     // 1. Invertimos el estado booleano global
     mostrarEMA20 = !mostrarEMA20;
 
@@ -1674,7 +1721,9 @@ function toggleEMA20() {
 
     // Sincronizamos los elementos viasuales e inmediatamente redibujamos.
     sincronizarUIVisualIndicadores();
-    
+
+    UI_resetearSliderAValorPorDefecto();
+
     // 3. Forzamos el redibujado sincronizado con el rango del slider actual
     if (typeof renderizarRangoActual === 'function') {
         renderizarRangoActual();
@@ -1685,7 +1734,7 @@ function toggleEMA20() {
  * Calcula el valor del EMA.
  */
 // FUNCION CALCULAR EMA PROFESIONAL (Adaptable a Lineas y Velas).
-function calcularEMA (datosCompletos, periodo, fechasVisibles, vistaActual) {
+function calcularEMA(datosCompletos, periodo, fechasVisibles, vistaActual) {
     if (!datosCompletos || datosCompletos.length === 0) return [];
 
     let emaMap = {};
@@ -1695,7 +1744,7 @@ function calcularEMA (datosCompletos, periodo, fechasVisibles, vistaActual) {
 
     // Necesito un punto de partida (una SMA Simple) para los primeros 'periodo' días.
     let sumaInicial = 0;
-    for (let i=0; i < periodo; i++) {
+    for (let i = 0; i < periodo; i++) {
         sumaInicial += datosCompletos[i].precio_cierre
     }
     let emaAnterior = sumaInicial / periodo;
@@ -1716,7 +1765,7 @@ function calcularEMA (datosCompletos, periodo, fechasVisibles, vistaActual) {
 
     // Mapeamos y recortamos segun las fechas que estan en pantalla.
     let resultadoFinal = [];
-    
+
     fechasVisibles.forEach(fecha => {
         const valorEMA = emaMap[fecha];
 

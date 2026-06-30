@@ -376,7 +376,7 @@ function verHistorial(ticker) {
                 } else {
                     slider.min = 5;
                 }
-                
+
                 // Establezco el limite maximo real del activo.
                 slider.max = datosHistoricosCompletos.length;
 
@@ -386,7 +386,7 @@ function verHistorial(ticker) {
 
             // Aseguramos que la UI del dropdown mantenga los indicadores encendidos.
             sincronizarUIVisualIndicadores();
-            
+
             // Forzamos el renderizado inicial usando el valor real del slider.
             if (slider) {
                 manejarCambioSlider(slider.value);
@@ -401,7 +401,7 @@ function verHistorial(ticker) {
                 seccionGrafico.classList.remove('hidden');
 
                 // Muevo suavemente la pantalla, hacia la seccion del gráfico.
-                seccionGrafico.scrollIntoView({behavior: 'smooth', block: 'start'});
+                seccionGrafico.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         })
         .catch(error => {
@@ -638,22 +638,20 @@ function actualizarGraficoProcesado(datosARenderizar) {
     const promedioPrecio = sumaCierres / preciosCierre.length;
 
     // CALCULOS DE INDICADORES (Usando el historial completo para evitar desfasajes en el gráfico).
-    // Pregunto si el numero de datos en el hisrotial es mayor a 20 dias.
     let datosSMA20 = [];
     let datosEMA20 = [];
-    
+
     if (mostrarSMA20 || mostrarEMA20) {
-        if(datosHistoricosCompletos.length > 20) {
+        if (datosHistoricosCompletos.length > 20) {
             datosSMA20 = calcularSMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
             datosEMA20 = calcularEMA(datosHistoricosCompletos, 20, etiquetasFechas, tipoVistaActual);
         } else {
-            // Apagamos los indicadores para evitar que queden tildados erróneamente en la Interfaz.
             mostrarSMA20 = false;
             mostrarEMA20 = false;
-            sincronizarUIVisualIndicadores(); // Limpio los checks visuales en la Dropdown.
+            sincronizarUIVisualIndicadores();
         }
     }
-    
+
     // Actualizo los valores del Panel OHLC dentro de la sección del Gráfico
     actualizarPanelOHLCEstatico(preciosApertura, preciosMaximos, preciosMinimos, preciosCierre);
 
@@ -718,31 +716,27 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     type: 'bar',
                     label: 'Volumen Diario',
                     data: volumenes,
-                    backgroundColor: 'rgba(156, 163, 175, 0.08)',
-                    hoverBackgroundColor: 'rgba(156, 163, 175, 0.2)',
+                    backgroundColor: 'rgba(156, 163, 175, 0.25)',
+                    hoverBackgroundColor: 'rgba(156, 163, 175, 0.45)',
                     yAxisID: 'yVolumen',
                     barThickness: 'flex'
                 },
-
-                // DATASET DINAMICO DE LA SMA20.
                 ...(mostrarSMA20 ? [{
                     label: 'SMA (20)',
                     data: datosSMA20,
                     type: 'line',
-                    borderColor: '#a855f7', // Violeta tecnológico
+                    borderColor: '#a855f7',
                     borderWidth: 2,
                     pointRadius: 0,
                     pointHoverRadius: 4,
                     tension: 0.2,
                     yAxisID: 'y'
                 }] : []),
-
-                // DATASET DINAMICO DE LA EMA20.
                 ...(mostrarEMA20 ? [{
                     label: 'EMA (20)',
                     data: datosEMA20,
                     type: 'line',
-                    borderColor: '#22d3ee', // Cyan/Celeste dinamico.
+                    borderColor: '#22d3ee',
                     borderWidth: 2,
                     pointRadius: 0,
                     pointHoverRadius: 4,
@@ -757,7 +751,7 @@ function actualizarGraficoProcesado(datosARenderizar) {
             onHover: (event) => {
                 const canvas = event.chart.canvas;
                 if (typeof herramientaActiva !== 'undefined' && herramientaActiva === 'lupa') {
-                    canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'></circle><line x1='16' y1='16' x2='22' y2='22'></line></svg>\") 8 8, auto";
+                    canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'></circle><line x1='16' x1='16' x2='22' y2='22'></line></svg>\") 8 8, auto";
                 } else {
                     canvas.style.cursor = 'crosshair';
                 }
@@ -772,7 +766,6 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     callbacks: {
                         label: function (context) {
                             const index = context.dataIndex;
-                            // Validamos que el dataset al que se le pasa el mouse sea el principal (0)
                             if (context.datasetIndex === 0) {
                                 return [
                                     `🟢 Apertura: $${preciosApertura[index].toFixed(2)}`,
@@ -781,26 +774,20 @@ function actualizarGraficoProcesado(datosARenderizar) {
                                     `🔻 Mínimo: $${preciosMinimos[index].toFixed(2)}`
                                 ];
                             }
-                            // Si el mouse pasa arriba de la línea SMA (dataset 2), mostramos su valor promediado
                             if (context.dataset && context.dataset.label === 'SMA (20)') {
                                 const puntoActual = context.dataset.data[context.dataIndex];
                                 if (puntoActual !== null && puntoActual !== undefined) {
-                                    // Si es un objeto (vista velas), extraemos .y. Si es un número plano (vista Linea), lo usamos directo.
                                     const valorLimpio = (typeof puntoActual === 'object') ? puntoActual.y : puntoActual;
                                     return `SMA (20): $${valorLimpio.toFixed(2)}`;
                                 }
-
                                 return null;
                             }
-
-                            // Soporte Tooltip para la EMA20.
                             if (context.dataset && context.dataset.label === 'EMA (20)') {
                                 const puntoActual = context.dataset.data[context.dataIndex];
                                 if (puntoActual !== null && puntoActual !== undefined) {
                                     const valorLimpio = (typeof puntoActual === 'object') ? puntoActual.y : puntoActual;
                                     return `EMA (20): $${valorLimpio.toFixed(2)}`;
                                 }
-
                                 return null;
                             }
                         }
@@ -826,6 +813,16 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     }
                 },
                 zoom: {
+                    limits: {
+                        x: {
+                            min: 'original',
+                            max: 'original'
+                        }
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: 'x'
+                    },
                     zoom: {
                         drag: {
                             enabled: true,
@@ -833,9 +830,18 @@ function actualizarGraficoProcesado(datosARenderizar) {
                             borderColor: 'rgba(59, 130, 246, 0.6)',
                             borderWidth: 1
                         },
-                        wheel: { enabled: true, speed: 0.1 },
+                        wheel: { enabled: true, speed: 0.05 },
+                        pinch: { enabled: true },
                         mode: 'x',
-                        scales: ['x'],
+                        // --- ESCUDO REVISADO Y CORREGIDO PARA EVITAR FILTRO DE TIEMPO ---
+                        onZoom: function ({ chart }) {
+                            const xAxis = chart.scales.x;
+                            if (chart.options.scales.x.type !== 'time') {
+                                if (xAxis.max - xAxis.min >= chart.data.labels.length - 1) {
+                                    chart.resetZoom();
+                                }
+                            }
+                        },
                         onZoomStart: function () {
                             return (typeof herramientaActiva !== 'undefined' && herramientaActiva === 'lupa');
                         }
@@ -847,7 +853,16 @@ function actualizarGraficoProcesado(datosARenderizar) {
                     type: tipoVistaActual === 'velas' ? 'time' : 'category',
                     time: { unit: 'day' },
                     grid: { display: false },
-                    ticks: { color: '#9ca3af' }
+                    ticks: { color: '#9ca3af' },
+                    offset: true, // Lo dejamos activo como respaldo
+
+                    // --- FORZAMOS UN MARGEN MANUAL SI ES VISTA DE VELAS ---
+                    min: tipoVistaActual === 'velas' && datosARenderizar.length > 0
+                        ? luxon.DateTime.fromISO(datosARenderizar[0].fecha).minus({ days: 1 }).valueOf()
+                        : undefined,
+                    max: tipoVistaActual === 'velas' && datosARenderizar.length > 0
+                        ? luxon.DateTime.fromISO(datosARenderizar[datosARenderizar.length - 1].fecha).plus({ days: 1 }).valueOf()
+                        : undefined
                 },
                 y: {
                     type: 'linear',

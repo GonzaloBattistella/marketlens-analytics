@@ -22,6 +22,16 @@ models.Base.metadata.create_all(bind=engine)
 # Leo el archivo .env y cargo las variables en la memoria.
 load_dotenv()
 
+# Obtengo la API KEY de Alpha Vantage, utilizada para obtener datos financieros.
+ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY")
+
+# Verificacion de seguridad en el arranque de uvicorn.
+if not ALPHA_VANTAGE_KEY:
+    print("❌ ¡ALERTA! No se encontró la API Key de Alpha Vantage en el archivo .env")
+else:
+    print("✅ API Key de Alpha Vantage cargada con éxito desde el entorno seguro.")
+
+
 app = FastAPI(title="MarketLens API", version="0.1.0")
 
 app.include_router(auth.router)
@@ -179,48 +189,44 @@ def leer_indicadores_db(db: Session = Depends(get_db)):
 @app.get("/db/historial/{ticker}")
 def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
     ticker = ticker.upper()
+
+    per_valor = None
+    ev_ebitda_valor = None
     
-    # Intentamos buscar en la base de datos primero
+    # 1. Intentamos buscar el historial de precios en la base de datos primero
     historial = db.query(models.PriceHistory)\
                   .filter(models.PriceHistory.ticker == ticker)\
                   .order_by(models.PriceHistory.fecha.asc())\
                   .all()
                   
-    # Si NO hay datos en la DB, los vamos a buscar a internet automáticamente
+    # 2. Si NO hay precios en la DB, los descargamos de yfinance por única vez
     if not historial:
         print(f"🚀 {ticker} no está en la DB. Descargando historial de Yahoo Finance...")
         try:
-            # Buscamos el historial en yfinance
             stock = yf.Ticker(ticker)
-            df = stock.history(period="5y") # Me llevo todo el historial en la DB para el activo (5 Años).
-            
-            # Limpieza de seguridad para evitar que colapse por filas nulas.
-            df = df.dropna(subset=['Close'])
-
+            df = stock.history(period="5y")  # Descargamos un histórico robusto de 5 años
+            df = df.dropna(subset=['Close']) # Limpieza de seguridad
 
             if df.empty:
                 raise HTTPException(status_code=404, detail=f"No se encontraron datos en Yahoo para {ticker}")
                 
-            # Formateamos y guardamos en lote igual que hacías en la otra ruta
-            nuevas_filas = []
-            for indice, fila in df.iterrows():
-                nueva_fecha = indice.date()
-                nuevo_registro = models.PriceHistory(
+            # Mapeo y guardado en lote (Bulk Save) para optimizar performance en Postgres
+            nuevas_filas = [
+                models.PriceHistory(
                     ticker=ticker,
-                    fecha=nueva_fecha,
+                    fecha=indice.date(),
                     precio_apertura=float(fila['Open']),
                     precio_maximo=float(fila['High']),
                     precio_minimo=float(fila['Low']),
                     precio_cierre=float(fila['Close']),
                     volumen=int(fila['Volume'])
-                )
-                nuevas_filas.append(nuevo_registro)
+                ) for indice, fila in df.iterrows()
+            ]
             
-            # Guardamos en Postgres
             db.bulk_save_objects(nuevas_filas)
             db.commit()
             
-            # Volvemos a consultar la DB ahora que ya tiene los datos guardados
+            # Volvemos a consultar para retornar los objetos recién creados
             historial = db.query(models.PriceHistory)\
                           .filter(models.PriceHistory.ticker == ticker)\
                           .order_by(models.PriceHistory.fecha.asc())\
@@ -229,8 +235,64 @@ def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Error al automatizar el historial: {str(e)}")
-        
-    return historial
+
+    # =========================================================================
+    #  EXTRAER RATIOS FUNDAMENTALES (Consumiendo la Key Global Segura)
+    # =========================================================================
+    try:
+        # Endpoint de Vista General (Overview) de Alpha Vantage usando nuestra constante global
+        url = f"https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={ALPHA_VANTAGE_KEY}"
+        respuesta = requests.get(url, timeout=4)
+
+        if respuesta.status_code == 200:
+            datos_alpha = respuesta.json()
+            
+            # Monitoreo estratégico en la consola de Uvicorn
+            print(f"DEBUG ALPHA VANTAGE RESPUESTA PARA {ticker}: {datos_alpha}")
+            
+            # Verificamos que la API no haya devuelto una lista vacía o mensaje de límite de tasa (Rate Limit)
+            if datos_alpha and "PERatio" in datos_alpha:
+                per_raw = datos_alpha.get("PERatio")
+                ev_ebitda_raw = datos_alpha.get("EVToEBITDA")
+                
+                # Convertimos las respuestas (strings) a floats válidos si no son nulos
+                if per_raw and per_raw != "None":
+                    per_valor = float(per_raw)
+                if ev_ebitda_raw and ev_ebitda_raw != "None":
+                    ev_ebitda_valor = float(ev_ebitda_raw)
+                    
+                print(f"✅ Ratios de {ticker} obtenidos de Alpha Vantage -> PER: {per_valor}, EV/EBITDA: {ev_ebitda_valor}")
+            else:
+                print(f"⚠️ Alpha Vantage no devolvió ratios clave para {ticker} (Estructura vacía o límite alcanzado).")
+        else:
+            print(f"⚠️ Alpha Vantage respondió con código de estado HTTP: {respuesta.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error al consultar fundamentales en Alpha Vantage para {ticker}: {str(e)}")
+
+    # ================================================================================
+    #   FALLBACK INTELIGENTE: Si Alpha Vantage falló o dio None, yfinance al rescate.
+    # ================================================================================
+    if per_valor is None or ev_ebitda_valor is None:
+        try:
+            stock_fallback = yf.Ticker(ticker)
+            info_seguro = stock_fallback.info if hasattr(stock_fallback, 'info') else {}
+            
+            if per_valor is None:
+                per_valor = info_seguro.get('trailingPE') or info_seguro.get('forwardPE')
+            if ev_ebitda_valor is None:
+                ev_ebitda_valor = info_seguro.get('enterpriseToEbitda')
+                
+            print(f"ℹ️ Fallback de yfinance ejecutado para {ticker}. PER: {per_valor}, EV/EBITDA: {ev_ebitda_valor}")
+        except Exception as yf_err:
+            print(f"⚠️ Fallback de yfinance falló para {ticker}: {yf_err}")
+
+    # Retorno estructurado definitivo hacia tu frontend
+    return {
+        "per": per_valor,
+        "evEbitda": ev_ebitda_valor,
+        "historial": historial
+    }
 
 # Refrescar - Actualizar indicadores e historial DB.
 @app.post("/db/refrescar")

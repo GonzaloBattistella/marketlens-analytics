@@ -363,7 +363,12 @@ function verHistorial(ticker) {
             // ==========================================
             //          PROCESAMIENTO Y CÁLCULOS
             // ==========================================
-            datosHistoricosCompletos = datosHistorial; // Me guardo los datos del historial que vinieron de la DB.
+
+            // Ahora los datos del historial en el array vive en la propiedad .historial.
+            datosHistoricosCompletos = datosHistorial.historial || []; // Me guardo los datos del historial que vinieron de la DB.
+
+            // Actualizo el panel de ratios fundamentales con los datos del objetor raiz.
+            actualizarPanelFundamentalesEstatico(datosHistorial.per, datosHistorial.evEbitda);
 
             // Configuración del slider unico continuo.
             const slider = document.getElementById('slider-historial');
@@ -579,6 +584,48 @@ function renderizarRangoActual() {
     // Llamado a la funcion que se encarga de destruir el gráfico viejo y renderizar nuevamente el grafico actualizado.
     actualizarGraficoProcesado(datosFiltrados);
 }
+
+// =====================================================================================
+//                  FUNCIONES AUXILIARES PARA LOS INDICADORES DEL GRÁFICO
+// =====================================================================================
+
+// FUNCION QUE SE INVOCA EN LA FUNCION verHistorial.
+/**
+ * Actualiza el bloque de ratios fundamentales (PER y EV/EBITDA) en el segundo piso.
+ */
+function actualizarPanelFundamentalesEstatico(per, evEbitda) {
+    const elPer = document.getElementById('fundamental-per');
+    const elEvEbitda = document.getElementById('fundamental-ev-ebitda');
+
+    // 1. PROCESAR PER
+    if (elPer) {
+        try {
+            if (per !== null && per !== undefined && per !== '' && !isNaN(per)) {
+                elPer.innerText = `${Number(per).toFixed(2)}x`;
+            } else {
+                elPer.innerText = 'N/A';
+            }
+        } catch (err) {
+            console.error("Error al formatear PER:", err);
+            elPer.innerText = 'N/A';
+        }
+    }
+
+    // 2. PROCESAR EV / EBITDA (Bloque independiente para que no lo bloquee el PER)
+    if (elEvEbitda) {
+        try {
+            if (evEbitda !== null && evEbitda !== undefined && evEbitda !== '' && !isNaN(evEbitda)) {
+                elEvEbitda.innerText = `${Number(evEbitda).toFixed(2)}x`;
+            } else {
+                elEvEbitda.innerText = 'N/A';
+            }
+        } catch (err) {
+            console.error("Error al formatear EV/EBITDA:", err);
+            elEvEbitda.innerText = 'N/A';
+        }
+    }
+}
+
 
 /**
  * Actualiza el bloque OHLC Estático en la cabecera del gráfico.

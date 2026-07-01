@@ -14,6 +14,7 @@ from google import genai
 from google.genai import types
 from app.routers import auth
 from app.routers import favorites
+from functools import lru_cache
 
 
 # Le dice a SQLAlchemy que agarre todos los modelos heredados de 'Base' y los cree en el motor (engine)
@@ -184,6 +185,25 @@ def leer_indicadores_db(db: Session = Depends(get_db)):
         
     return activos
 
+# Configuro el caché para almacenar los ratios de hasta 128 tickers distintos.
+# El cache guardará el resultado en memoria RAM.
+@lru_cache(maxsize=128)
+def obtener_ratios_alpha_vantage(ticker: str, api_key: str):
+    print(f"📡 [CACHE MISS] Buscando ratios reales en internet para {ticker}...")
+    try:
+        url = f"https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={api_key}"
+        respuesta = requests.get(url, timeout=1.2) # Timeout optimizado
+        if respuesta.status_code == 200:
+            datos = respuesta.json()
+            if datos and "PERatio" in datos:
+                return {
+                    "per": datos.get("PERatio"),
+                    "ev_ebitda": datos.get("EVToEBITDA")
+                }
+    except Exception as e:
+        print(f"❌ Error rápido en llamada Alpha: {str(e)}")
+    return None
+
 
 # Historial DB
 @app.get("/db/historial/{ticker}")
@@ -237,38 +257,19 @@ def leer_historial_db(ticker: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail=f"Error al automatizar el historial: {str(e)}")
 
     # =========================================================================
-    #  EXTRAER RATIOS FUNDAMENTALES (Consumiendo la Key Global Segura)
+    #  EXTRAER RATIOS FUNDAMENTALES (Optimizados con Caché)
     # =========================================================================
-    try:
-        # Endpoint de Vista General (Overview) de Alpha Vantage usando nuestra constante global
-        url = f"https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={ALPHA_VANTAGE_KEY}"
-        respuesta = requests.get(url, timeout=4)
+    ratios_datos = obtener_ratios_alpha_vantage(ticker, ALPHA_VANTAGE_KEY)
 
-        if respuesta.status_code == 200:
-            datos_alpha = respuesta.json()
-            
-            # Monitoreo estratégico en la consola de Uvicorn
-            print(f"DEBUG ALPHA VANTAGE RESPUESTA PARA {ticker}: {datos_alpha}")
-            
-            # Verificamos que la API no haya devuelto una lista vacía o mensaje de límite de tasa (Rate Limit)
-            if datos_alpha and "PERatio" in datos_alpha:
-                per_raw = datos_alpha.get("PERatio")
-                ev_ebitda_raw = datos_alpha.get("EVToEBITDA")
-                
-                # Convertimos las respuestas (strings) a floats válidos si no son nulos
-                if per_raw and per_raw != "None":
-                    per_valor = float(per_raw)
-                if ev_ebitda_raw and ev_ebitda_raw != "None":
-                    ev_ebitda_valor = float(ev_ebitda_raw)
-                    
-                print(f"✅ Ratios de {ticker} obtenidos de Alpha Vantage -> PER: {per_valor}, EV/EBITDA: {ev_ebitda_valor}")
-            else:
-                print(f"⚠️ Alpha Vantage no devolvió ratios clave para {ticker} (Estructura vacía o límite alcanzado).")
-        else:
-            print(f"⚠️ Alpha Vantage respondió con código de estado HTTP: {respuesta.status_code}")
-            
-    except Exception as e:
-        print(f"❌ Error al consultar fundamentales en Alpha Vantage para {ticker}: {str(e)}")
+    if ratios_datos:
+        per_raw = ratios_datos.get("per")
+        ev_ebitda_raw = ratios_datos.get("ev_ebitda")
+
+        if per_raw and per_raw != "None":
+            per_valor = float(per_raw)
+        if ev_ebitda_raw and ev_ebitda_raw != "None":
+            ev_ebitda_valor = float(ev_ebitda_raw)
+        print(f"✅ Ratios obtenidos (Caché/API) para {ticker} -> PER: {per_valor}")
 
     # ================================================================================
     #   FALLBACK INTELIGENTE: Si Alpha Vantage falló o dio None, yfinance al rescate.
